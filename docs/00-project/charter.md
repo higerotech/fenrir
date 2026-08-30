@@ -26,6 +26,9 @@ terceros, reutilizando el appliance de red existente.
 - **No incluye (no-scope):**
   - Blink Mini: sin RTSP/ONVIF ni workaround mantenido (protocolo cloud propietario de
     Amazon); permanecen en la app Blink. Candidatas a reemplazo en fase posterior.
+    Confirmado por NVR-SPIKE-002 (2026-08-30) con una segunda razón independiente: sin
+    plan de suscripción ni Sync Module 2, **hoy no graban nada en ningún sitio**, así que
+    no hay material que recuperar aunque el transporte se resolviera.
   - Exposición de ningún puerto del NVR hacia las WAN.
   - Acelerador dedicado (Coral/GPU), búsqueda semántica (el i3-3240 carece de AVX2) y
     reconocimiento facial/matrículas.
