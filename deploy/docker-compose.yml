@@ -1,0 +1,63 @@
+# NVR Doméstico Frigate — ADR-0003: imagen pineada, secretos en .env, puertos mínimos
+name: nvr
+
+# T5 — Docker publica vía DNAT en PREROUTING y NO atraviesa la cadena `input` de nftables:
+# un default-drop en input NO protege un puerto publicado. Por eso el bind es explícito a
+# ${FRIGATE_LAN_IP} en lugar de 0.0.0.0. Las reglas de DOCKER-USER (runbook §8) quedan como
+# segunda barrera, no como única.
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"        # T1 — json-file no rota por defecto: logs ilimitados llenan el HDD
+      max-file: "3"
+
+services:
+  frigate:
+    image: ghcr.io/blakeblackshear/frigate:0.17.2   # NO usar stable/latest (ADR-0003)
+    container_name: frigate
+    restart: unless-stopped
+    stop_grace_period: 30s
+    shm_size: "128mb"                # suficiente para 2 cámaras detect 640x360
+    <<: *logging
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128   # VAAPI (Intel HD 2500)
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /srv/frigate/config:/config
+      - /srv/frigate/media:/media/frigate
+      - type: tmpfs                  # caché de segmentos en RAM, protege el HDD
+        target: /tmp/cache
+        tmpfs:
+          size: 1000000000
+    ports:
+      - "${FRIGATE_LAN_IP}:8971:8971"        # UI + API autenticada
+      - "${FRIGATE_LAN_IP}:8554:8554"        # go2rtc restream RTSP
+      - "${FRIGATE_LAN_IP}:8555:8555/tcp"    # WebRTC
+      - "${FRIGATE_LAN_IP}:8555:8555/udp"
+      # Puerto 5000 (API sin auth) deliberadamente NO publicado (T6)
+    environment:
+      LIBVA_DRIVER_NAME: i965        # driver correcto para Ivy Bridge (2.ª-6.ª gen)
+      FRIGATE_RTSP_USER: ${FRIGATE_RTSP_USER}
+      FRIGATE_RTSP_PASSWORD: ${FRIGATE_RTSP_PASSWORD}
+      FRIGATE_MQTT_PASSWORD: ${FRIGATE_MQTT_PASSWORD}
+      FRIGATE_LAN_IP: ${FRIGATE_LAN_IP}      # usado por go2rtc.webrtc.candidates (RF04)
+    depends_on:
+      - mosquitto
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto
+    restart: unless-stopped
+    <<: *logging
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/passwd:/mosquitto/config/passwd:ro
+      - mosquitto-data:/mosquitto/data
+    ports:
+      # Solo para clientes MQTT fuera de esta red compose (Node-RED en el host u otra máquina).
+      # Si Node-RED acaba en este mismo proyecto compose, eliminar este mapeo entero.
+      - "${FRIGATE_LAN_IP}:1883:1883"
+
+volumes:
+  mosquitto-data:
