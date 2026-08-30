@@ -1,0 +1,109 @@
+# Frigate 0.17.2 — NVR Doméstico (2x Tapo C310, i3-3240 sin AVX2, VAAPI i965)
+# Credenciales inyectadas por variables FRIGATE_* (ver .env). Trazas: RF01-RF05, T1, T2, T6.
+# Schema de config de 0.17.x = 0.17-0 (CURRENT_CONFIG_VERSION en frigate/util/config.py).
+version: 0.17-0
+
+mqtt:
+  enabled: true
+  host: mosquitto
+  port: 1883
+  user: frigate
+  password: "{FRIGATE_MQTT_PASSWORD}"
+  topic_prefix: frigate
+
+# Detección por CPU (sin Coral/GPU). OpenVINO en modo CPU sería más eficiente según upstream,
+# pero solo está soportado desde 6.ª gen Intel (Skylake); el i3-3240 es 3.ª gen (Ivy Bridge).
+# Presupuesto T2: si CPU sostenida >50%, bajar fps de detect a 4 antes que subir num_threads.
+detectors:
+  cpu0:
+    type: cpu
+    num_threads: 2
+
+ffmpeg:
+  hwaccel_args: preset-vaapi   # decodificación H.264 en la iGPU HD 2500 (requiere LIBVA_DRIVER_NAME=i965)
+  output_args:
+    # SR06 / FL §934.03 — defensa en profundidad: el preset por defecto de Frigate es
+    # `preset-record-generic-audio-aac`, que SÍ graba audio si el stream lo trae.
+    # `preset-record-generic` graba SIN audio aunque el micrófono se reactive en la cámara.
+    record: preset-record-generic
+
+# go2rtc: 1 sola conexión al stream1 de cada cámara, multiplexada a grabación,
+# vivo WebRTC y restream RTSP (menos carga sobre la cámara y la red).
+# `#backchannel=0` evita que go2rtc negocie audio bidireccional con la Tapo (ONVIF two-way).
+go2rtc:
+  streams:
+    cam_01:
+      - rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM1_IP}:554/stream1#backchannel=0
+    cam_02:
+      - rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM2_IP}:554/stream1#backchannel=0
+  # RF04 (vivo ≤2 s): sin candidates, WebRTC no negocia y la UI degrada a MSE.
+  # La IP debe ser la LAN del appliance; los peers WireGuard la alcanzan si su AllowedIPs
+  # incluye la subred LAN (el bind es por dirección destino, no por interfaz).
+  webrtc:
+    candidates:
+      - "{FRIGATE_LAN_IP}:8555"
+      - stun:8555
+
+cameras:
+  cam_01:
+    enabled: true
+    ffmpeg:
+      inputs:
+        - path: rtsp://127.0.0.1:8554/cam_01   # vía go2rtc
+          input_args: preset-rtsp-restream
+          roles: [record]
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM1_IP}:554/stream2
+          roles: [detect]
+    detect:
+      width: 640
+      height: 360
+      fps: 5
+    objects:
+      track: [person, car, cat, dog]
+
+  cam_02:
+    enabled: true
+    ffmpeg:
+      inputs:
+        - path: rtsp://127.0.0.1:8554/cam_02
+          input_args: preset-rtsp-restream
+          roles: [record]
+        - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM2_IP}:554/stream2
+          roles: [detect]
+    detect:
+      width: 640
+      height: 360
+      fps: 5
+    objects:
+      track: [person, car, cat, dog]
+
+# Clasificación de review explícita: person/car son alertas (14 d), fauna es detección (7 d).
+# Se declara aunque coincida con el default para que la retención de `record` sea trazable.
+review:
+  alerts:
+    labels: [person, car]
+  detections:
+    labels: [cat, dog]
+
+# DVR: continuo 3 días; alertas 14; detecciones 7 (T1: dimensionado ~130 GB + eventos).
+record:
+  enabled: true
+  retain:
+    days: 3
+    mode: all
+  alerts:
+    retain:
+      days: 14
+  detections:
+    retain:
+      days: 7
+
+snapshots:
+  enabled: true
+  retain:
+    default: 14
+
+# Sin audio: micrófono apagado en cámara (Paso 1) + `preset-record-generic` arriba (SR06).
+
+# Ampliación: para una cámara nueva ONVIF/RTSP, duplicar un bloque de `cameras`
+# y su entrada en go2rtc; añadir reserva DHCP y reglas de aislamiento (runbook §8).
