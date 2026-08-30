@@ -41,6 +41,14 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
   degrada a MSE, incumpliendo RF04 (≤2 s) tanto en LAN como por WireGuard.
 - `go2rtc`: `#backchannel=0` en los streams de las Tapo para no negociar audio bidireccional.
 
+### Cambiado
+- **Anonimización para repositorio público**: ninguna IP, MAC ni ubicación real vive en el
+  repo. Las IPs de cámara salen del `config.yml` a variables `FRIGATE_CAM1_IP` /
+  `FRIGATE_CAM2_IP` en el `.env` gitignorado — el mismo patrón que ya usaban las
+  credenciales (SR03), así que no hay tabla de traducción que recordar. Las cámaras pasan a
+  llamarse `cam_01` / `cam_02` y los ejemplos usan `192.0.2.0/24` (RFC 5737, reservado para
+  documentación). Convención documentada en el README.
+
 ### Seguridad
 
 - Exclusión explícita de exposición WAN; acceso remoto solo vía WireGuard existente.

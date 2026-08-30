@@ -42,6 +42,8 @@ services:
       FRIGATE_RTSP_PASSWORD: ${FRIGATE_RTSP_PASSWORD}
       FRIGATE_MQTT_PASSWORD: ${FRIGATE_MQTT_PASSWORD}
       FRIGATE_LAN_IP: ${FRIGATE_LAN_IP}      # usado por go2rtc.webrtc.candidates (RF04)
+      FRIGATE_CAM1_IP: ${FRIGATE_CAM1_IP}    # las IPs reales viven solo en .env (repo publico)
+      FRIGATE_CAM2_IP: ${FRIGATE_CAM2_IP}
     depends_on:
       - mosquitto
 

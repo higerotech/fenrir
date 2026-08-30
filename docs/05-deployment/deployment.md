@@ -17,8 +17,8 @@ C4Deployment
 
     Deployment_Node(lan, "LAN domestica", "Trust boundary nftables") {
         Deployment_Node(cams, "Segmento camaras", "Reservas DHCP dnsmasq, egress deny") {
-            Container(cam1, "Tapo C310 entrada", "RTSP/ONVIF", "stream1 1080p + stream2 640x360")
-            Container(cam2, "Tapo C310 patio", "RTSP/ONVIF", "stream1 1080p + stream2 640x360")
+            Container(cam1, "Tapo C310 num 1", "RTSP/ONVIF", "stream1 1080p + stream2 640x360")
+            Container(cam2, "Tapo C310 num 2", "RTSP/ONVIF", "stream1 1080p + stream2 640x360")
         }
         Deployment_Node(appliance, "Appliance i3-3240", "Ubuntu 24.04, tambien router") {
             Deployment_Node(docker, "Docker Engine", "compose project nvr") {
@@ -46,7 +46,8 @@ C4Deployment
 ---
 
 ## Paso 0 — Prerrequisitos y decisiones (HITL antes de ejecutar)
-- [ ] IPs definitivas de las cámaras (propuesta: reservas DHCP `192.168.1.61` entrada, `192.168.1.62` patio — ajustar al plan de direccionamiento real).
+- [ ] IPs definitivas de las cámaras, fijadas por reserva DHCP. Van al `.env` como
+      `FRIGATE_CAM1_IP` / `FRIGATE_CAM2_IP`: **no se escriben en el repo** (§Anonimización).
 - [ ] ≥200 GB libres en el HDD para `/srv/frigate/media` (2 cámaras × ~2 Mbps ≈ 43 GB/día ambas en continuo; 3 días ≈ 130 GB + margen).
 - [ ] Contraseñas listas: cuenta de cámara Tapo (una por cámara), usuario MQTT de Frigate y de Node-RED.
 - [ ] Confirmar que el micrófono de las cámaras quedará deshabilitado (FL §934.03).
@@ -60,14 +61,15 @@ C4Deployment
 3. Firmware al día desde la app (último parche antes de aislarlas de internet).
 4. Reserva DHCP en dnsmasq del router (sustituir MACs reales):
    ```
-   dhcp-host=AA:BB:CC:DD:EE:01,192.168.1.61,cam-entrada
-   dhcp-host=AA:BB:CC:DD:EE:02,192.168.1.62,cam-patio
+   dhcp-host=<MAC-CAM-1>,<IP-CAM-1>,cam-01
+   dhcp-host=<MAC-CAM-2>,<IP-CAM-2>,cam-02
    ```
    Reiniciar dnsmasq y reconectar las cámaras.
 5. Verificación desde el appliance:
    ```bash
-   ffprobe -rtsp_transport tcp "rtsp://USUARIO:CLAVE@192.168.1.61:554/stream1"
-   ffprobe -rtsp_transport tcp "rtsp://USUARIO:CLAVE@192.168.1.61:554/stream2"
+   source .env   # trae FRIGATE_CAM1_IP y las credenciales, sin teclearlas
+   ffprobe -rtsp_transport tcp \n     "rtsp://$FRIGATE_RTSP_USER:$FRIGATE_RTSP_PASSWORD@$FRIGATE_CAM1_IP:554/stream1"
+   ffprobe -rtsp_transport tcp \n     "rtsp://$FRIGATE_RTSP_USER:$FRIGATE_RTSP_PASSWORD@$FRIGATE_CAM1_IP:554/stream2"
    ```
    Debe reportar h264, 1920x1080 (stream1) y 640x360 (stream2).
 
@@ -104,8 +106,10 @@ sudo mkdir -p /opt/nvr && cd /opt/nvr
 cp deploy/.env.example .env && chmod 600 .env && nano .env   # rellenar credenciales reales
 cp deploy/frigate/config.yml /srv/frigate/config/config.yml
 ```
-Editar `/srv/frigate/config/config.yml`: sustituir las IPs de cámara si difieren de la
-propuesta. Las credenciales NO van en el YAML: se inyectan por variables `FRIGATE_*`.
+`config.yml` no lleva ninguna IP ni credencial: todo entra por variables `FRIGATE_*` desde
+el `.env`. Lo único editable en el YAML son los nombres de cámara (`cam_01`, `cam_02`) y las
+zonas. **Fijar los nombres antes del primer arranque**: renombrar una cámara después deja
+huérfano su directorio de grabaciones, porque Frigate almacena la media por nombre.
 `FRIGATE_LAN_IP` del `.env` alimenta dos cosas a la vez: el bind de los puertos en el
 compose (T5) y `go2rtc.webrtc.candidates` en el config (RF04). Validar antes de arrancar:
 ```bash
@@ -165,7 +169,7 @@ sudo ss -lntup | grep -E '8971|8554|8555|1883'   # ninguna línea debe decir 0.0
 Pendiente de las MACs/IPs definitivas (mismo insumo que espera la config nftables del
 router). Intención de reglas, a integrar en el ruleset del proyecto de red:
 1. `DOCKER-USER` / input WAN: drop de 8971, 8554, 8555 y 1883 desde interfaces WAN.
-2. Egress cámaras: drop `192.168.1.61-62` → WAN (opcional permitir NTP 123/udp);
+2. Egress cámaras: drop de las IPs de ambas cámaras → WAN (opcional permitir NTP 123/udp);
    permitir solo cámara ↔ appliance en 554/2020.
 3. Verificación externa: desde fuera (datos móviles), `nmap -Pn IP-WAN -p 8971,8554,8555,1883`
    → todo filtrado.

@@ -57,7 +57,7 @@ C4Context
 
 ```mermaid
 journey
-    title Revisar un evento de movimiento en la entrada
+    title Revisar un evento de movimiento en una camara
     section Notificación
       Frigate detecta persona: 4: Sistema
       Node-RED notifica por MQTT: 4: Sistema
@@ -168,8 +168,8 @@ flowchart LR
     WG([Cliente WireGuard]) -->|"UDP cifrado"| FW
     subgraph LAN [Trust boundary: LAN nftables]
       FW[Appliance router] --> NVR[Frigate NVR]
-      CAM1[C310 entrada] -->|"RTSP en claro"| NVR
-      CAM2[C310 patio] -->|"RTSP en claro"| NVR
+      CAM1[C310 num 1] -->|"RTSP en claro"| NVR
+      CAM2[C310 num 2] -->|"RTSP en claro"| NVR
       NVR -->|"eventos"| MQTT[(Mosquitto)]
       MQTT --> NR[Node-RED]
       NVR --> HDD[(Media HDD)]

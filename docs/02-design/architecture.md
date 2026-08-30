@@ -22,8 +22,8 @@ C4Container
     title Contenedores — NVR sobre el appliance compartido
 
     Person(jeremi, "Jeremi", "Admin y usuario")
-    System_Ext(cam1, "Tapo C310 entrada", "RTSP 554 / ONVIF 2020")
-    System_Ext(cam2, "Tapo C310 patio", "RTSP 554 / ONVIF 2020")
+    System_Ext(cam1, "Tapo C310 num 1", "RTSP 554 / ONVIF 2020")
+    System_Ext(cam2, "Tapo C310 num 2", "RTSP 554 / ONVIF 2020")
     System_Ext(nodered, "Node-RED", "Automatizaciones IoT")
 
     System_Boundary(host, "Appliance i3-3240 (Ubuntu 24.04, tambien router)") {
