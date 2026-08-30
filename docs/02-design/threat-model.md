@@ -1,6 +1,6 @@
 # Threat Model — NVR Doméstico Frigate
 
-* **Estado:** review
+* **Estado:** approved (Gate 1, 2026-08-30)
 * **Fecha:** 2026-08-30
 * **Decisores:** Jeremi
 * **Fase AI-DLC:** 02-design

@@ -1,6 +1,7 @@
 # Despliegue — NVR Doméstico Frigate (runbook paso a paso)
 
-* **Estado:** draft (hacia Gate 4; ejecutar tras aprobar Gates 0–1)
+* **Estado:** ready — Gates 0 y 1 aprobados 2026-08-30; **ejecutable**. Pasa a `approved`
+  al cerrar el Gate 4 con las desviaciones reales anotadas.
 * **Fecha:** 2026-08-30
 * **Decisores:** Jeremi
 * **Fase AI-DLC:** 05-deployment

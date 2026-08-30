@@ -1,6 +1,6 @@
 # PRD — MVP NVR: despliegue Frigate + cámaras ONVIF
 
-* **Estado:** review
+* **Estado:** approved (Gate 0, 2026-08-30)
 * **Fecha:** 2026-08-30
 * **Decisores:** Jeremi
 * **Fase AI-DLC:** 01-requirements
