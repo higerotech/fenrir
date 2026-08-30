@@ -7,6 +7,19 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 
 ## [Unreleased]
 
+### Spike en curso (NVR-SPIKE-002, sin decisión tomada)
+- `docs/01-requirements/spike-blinkpy.md`: spike para validar `blinkpy` como vía de
+  recuperar los eventos de las Blink Mini y revisarlos a destiempo. **No modifica el
+  no-scope del charter**: lo hace la ADR que salga del resultado, si sale.
+- `spikes/blinkpy/`: script de validación con listado en seco por defecto, descarga
+  incremental y despojado de audio en la ingesta.
+- Verificado contra `blinkpy` 0.25.9 instalado: `blinkpy` soporta tanto los clips en nube
+  (`download_videos`, exige plan de suscripción) como el almacenamiento local del Sync
+  Module 2 (`poll_local_storage_manifest`), que **no** lo exige y mantiene el video en casa.
+- Riesgos identificados y sin resolver: R1 el audio de las Blink reintroduce lo que SR06
+  excluyó (FL §934.03); R2 la credencial pasa a ser la cuenta Amazon; R3 cliente no
+  oficial; R4 dependencia de nube que el charter excluía.
+
 ### Añadido
 
 - Charter con mindmap de alcance, glosario (lenguaje ubicuo) y clasificación de datos.

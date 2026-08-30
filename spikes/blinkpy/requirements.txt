@@ -1,0 +1,2 @@
+# Spike NVR-SPIKE-002. Version pineada: cliente no oficial, un cambio de API rompe el script.
+blinkpy==0.25.9

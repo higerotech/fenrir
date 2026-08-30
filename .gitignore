@@ -1,2 +1,8 @@
 .env
 deploy/mosquitto/passwd
+
+# Spike blinkpy: la sesion persistida vale lo mismo que la clave de Amazon (R2)
+.blink/
+*token.json
+spikes/blinkpy/.venv/
+__pycache__/
