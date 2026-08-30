@@ -1,5 +1,11 @@
 # Spike NVR-SPIKE-002 — eventos de Blink Mini con `blinkpy`
 
+> **APARCADO — 2026-08-30.** El spike se cerró con **resultado negativo**: no hay plan de
+> suscripción Blink ni Sync Module 2, así que las Blink Mini no generan clips recuperables
+> por ninguna vía. Este código **no corre en ningún sitio** y no es dependencia de nada.
+> Solo vuelve a la mesa si se compra un Sync Module 2 (camino B). Ver el
+> [resultado del spike](../../docs/01-requirements/spike-blinkpy.md#resultado).
+
 Código de **spike**, no de producción. Responde la pregunta de
 [`docs/01-requirements/spike-blinkpy.md`](../../docs/01-requirements/spike-blinkpy.md) y se
 borra o se promueve según el resultado. Las Blink Mini siguen en el no-scope del charter
