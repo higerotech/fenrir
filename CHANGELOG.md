@@ -5,51 +5,75 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
 y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
-## [Unreleased]
+Cada versión corresponde al cierre de un gate AI-DLC, según las reglas de `.ai-dlc/gates/`.
 
-### Spike cerrado — resultado negativo (NVR-SPIKE-002)
-- `docs/01-requirements/spike-blinkpy.md`: spike para validar `blinkpy` como vía de
-  recuperar los eventos de las Blink Mini y revisarlos a destiempo. **No modifica el
-  no-scope del charter**: lo hace la ADR que salga del resultado, si sale.
-- `spikes/blinkpy/`: script de validación con listado en seco por defecto, descarga
-  incremental y despojado de audio en la ingesta.
-- Verificado contra `blinkpy` 0.25.9 instalado: `blinkpy` soporta tanto los clips en nube
-  (`download_videos`, exige plan de suscripción) como el almacenamiento local del Sync
-  Module 2 (`poll_local_storage_manifest`), que **no** lo exige y mantiene el video en casa.
-- Riesgos identificados: R1 el audio de las Blink reintroduce lo que SR06 excluyó
-  (FL §934.03); R2 la credencial pasa a ser la cuenta Amazon; R3 cliente no oficial;
-  R4 dependencia de nube que el charter excluía.
-- **Cerrado sin ejecutar**: no hay plan de suscripción ni Sync Module 2, de modo que las
-  Blink Mini no generan clips recuperables por ninguna de las dos vías. El código queda
-  aparcado en `spikes/blinkpy/`, sin correr en ningún sitio.
-- Charter: el no-scope de las Blink Mini gana una segunda razón verificada — hoy no
-  graban nada en ningún sitio, así que no hay material que recuperar.
+## [Unreleased]
 
 ### Añadido
 
-- Charter con mindmap de alcance, glosario (lenguaje ubicuo) y clasificación de datos.
-- PRD del MVP con escenarios de abuso, C4 Context, journey, requirementDiagram (ASVS L1)
-  y threat assessment inicial (DFD + quadrant DREAD).
+- Checklists de Gates 2–5 adaptados a un proyecto COTS-configuración (sin código propio).
+- `docs/03-implementation/config-baseline.md` (Gate 2): inventario de artefactos, gitGraph de
+  ramas y releases, validación de config (equivalente SAST) y cadena de suministro con
+  digests (A03).
+- `docs/04-testing/test-plan.md` (Gate 3): 16 casos de aceptación + 9 de seguridad,
+  C4Container con el alcance de prueba, requirementDiagram con `verifies` y matriz de
+  transiciones del segmento (incluidas las que NO deben ocurrir).
+- `docs/06-monitoring/observability.md` (Gate 5): SLIs/SLOs trazados a charter y threat
+  model, sequence señal→alerta→on-call, stateDiagram del incidente, 5 runbooks y timeline
+  al ciclo 2.
+- ADR-0005 (observabilidad sobre Node-RED en vez de Prometheus/Grafana, por
+  proporcionalidad). En `proposed`: se aprueba al cerrar el Gate 4.
+
+### Spike cerrado — resultado negativo (NVR-SPIKE-002)
+
+- `docs/01-requirements/spike-blinkpy.md`: spike para validar `blinkpy` como vía de recuperar
+  los eventos de las Blink Mini y revisarlos a destiempo.
+- `spikes/blinkpy/`: script de validación con listado en seco por defecto, descarga
+  incremental y despojado de audio en la ingesta. **Aparcado**: no corre en ningún sitio.
+- Verificado contra `blinkpy` 0.25.9 instalado: soporta tanto los clips en nube
+  (`download_videos`, exige plan de suscripción) como el almacenamiento local del Sync
+  Module 2 (`poll_local_storage_manifest`), que **no** lo exige y mantiene el video en casa.
+- **Cerrado sin ejecutar**: no hay plan de suscripción ni Sync Module 2, de modo que las
+  Blink Mini no generan clips recuperables por ninguna de las dos vías.
+- Riesgos identificados para el día que se retome: R1 el audio de las Blink reintroduce lo
+  que SR06 excluyó (FL §934.03); R2 la credencial pasa a ser la cuenta Amazon; R3 cliente no
+  oficial; R4 dependencia de nube que el charter excluía.
+
+## [0.2.0] - 2026-08-30
+
+**Gate 1 (Design) aprobado.** Arquitectura C4 validada, threat model STRIDE+DREAD con
+controles trazables, ADRs y contratos de interfaz.
+
+### Añadido
+
 - `architecture.md` con C4 Container, sequence del flujo detección→evento, stateDiagram
   del segmento de grabación y erDiagram del dominio.
 - `threat-model.md` STRIDE + DREAD con controles trazados a ADRs y nftables.
 - ADR-0001 (Frigate como NVR), ADR-0002 (placement on-prem en el appliance, PxD por
-  proporcionalidad), ADR-0003 (Docker Compose con imagen pineada 0.17.2).
-- Runbook de despliegue paso a paso (fase 05, borrador): cámaras Tapo, Docker, Frigate,
-  Mosquitto, verificación VAAPI y endurecimiento.
+  proporcionalidad), ADR-0003 (Docker Compose con imagen pineada 0.17.2),
+  ADR-0004 (política de retención 3 d continuo / 14 d alertas / 7 d detecciones).
+- Contratos de interfaz: tabla de endpoints RTSP / HTTPS / WebRTC / MQTT.
 - Artefactos ejecutables: `deploy/docker-compose.yml`, `deploy/frigate/config.yml`,
-  `deploy/mosquitto/mosquitto.conf`, `.env.example`.
+  `deploy/mosquitto/mosquitto.conf`, `deploy/.env.example`.
+- Runbook de despliegue paso a paso (fase 05, hacia Gate 4): cámaras Tapo, Docker, Frigate,
+  Mosquitto, verificación VAAPI y endurecimiento de red.
 
-- Checklists de Gates 2–5 adaptados a un proyecto COTS-configuración (sin código propio).
-- `docs/03-implementation/config-baseline.md`: inventario de artefactos, gitGraph de ramas y
-  releases, validación de config (equivalente SAST) y cadena de suministro con digests (A03).
-- `docs/04-testing/test-plan.md`: 16 casos de aceptación + 9 de seguridad, C4Container con el
-  alcance de prueba, requirementDiagram con `verifies` y matriz de transiciones del segmento
-  (incluidas las que NO deben ocurrir).
-- `docs/06-monitoring/observability.md`: SLIs/SLOs trazados a charter y threat model,
-  sequence señal→alerta→on-call, stateDiagram del incidente, 5 runbooks y timeline al ciclo 2.
-- ADR-0004 (política de retención, cierra el HITL de retención del Gate 1) y ADR-0005
-  (observabilidad sobre Node-RED en vez de Prometheus/Grafana, por proporcionalidad).
+### Cambiado
+
+- **ADR-0002 pasa a `accepted (condicional)`, resolviendo un bloqueo circular.** Estaba
+  redactada para aprobarse *"tras medir la CPU real"*, mientras el runbook exigía el Gate 1
+  aprobado para ejecutarse: cada uno esperaba al otro y el proyecto no podía avanzar sin
+  romper su propia regla. Se separan las dos preguntas que estaban mezcladas — *¿es el sitio
+  correcto?* es diseño y se contesta en el Gate 1 (candidato único viable); *¿aguanta la
+  carga?* es verificación y se contesta en T-11/T-12 del Gate 3. La ADR lleva ahora su
+  condición de revocación escrita.
+- **Anonimización para repositorio público**: ninguna IP, MAC ni ubicación real vive en el
+  repo. Las IPs de cámara salen del `config.yml` a variables `FRIGATE_CAM1_IP` /
+  `FRIGATE_CAM2_IP` en el `.env` gitignorado — el mismo patrón que ya usaban las credenciales
+  (SR03), así que no hay tabla de traducción que recordar. Las cámaras pasan a llamarse
+  `cam_01` / `cam_02` y los ejemplos usan `192.0.2.0/24` (RFC 5737, reservado para
+  documentación). Convención documentada en el README.
+- El runbook pasa de `draft` a `ready`: con los Gates 0 y 1 aprobados, es ejecutable.
 
 ### Corregido
 
@@ -58,14 +82,6 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
 - `go2rtc`: añadido `webrtc.candidates` — sin ellos WebRTC no negocia y la vista en vivo
   degrada a MSE, incumpliendo RF04 (≤2 s) tanto en LAN como por WireGuard.
 - `go2rtc`: `#backchannel=0` en los streams de las Tapo para no negociar audio bidireccional.
-
-### Cambiado
-- **Anonimización para repositorio público**: ninguna IP, MAC ni ubicación real vive en el
-  repo. Las IPs de cámara salen del `config.yml` a variables `FRIGATE_CAM1_IP` /
-  `FRIGATE_CAM2_IP` en el `.env` gitignorado — el mismo patrón que ya usaban las
-  credenciales (SR03), así que no hay tabla de traducción que recordar. Las cámaras pasan a
-  llamarse `cam_01` / `cam_02` y los ejemplos usan `192.0.2.0/24` (RFC 5737, reservado para
-  documentación). Convención documentada en el README.
 
 ### Seguridad
 
@@ -80,3 +96,26 @@ y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/
   barrera y no como única.
 - **T1**: rotación de logs `json-file` (`max-size: 10m`, `max-file: 3`) en ambos servicios;
   el driver por defecto no rota y compite con la grabación por el disco del router.
+
+## [0.1.0] - 2026-08-30
+
+**Gate 0 (Requirements) aprobado.** Requisitos de seguridad mapeados a ASVS L1, escenarios
+de abuso, threat assessment inicial y datos clasificados.
+
+### Añadido
+
+- Charter con mindmap de alcance y glosario de lenguaje ubicuo (DDD).
+- Clasificación de datos con regulación aplicable, cifrado y retención por tipo de dato.
+- PRD del MVP (`NVR-MVP-001`) con objetivos y no-objetivos, C4 Context, journey del usuario,
+  escenarios de abuso A1–A6, requirementDiagram (ASVS L1) y threat assessment inicial
+  (DFD + quadrant DREAD).
+
+### Seguridad
+
+- Requisitos SR01–SR06 mapeados a OWASP ASVS L1 y al Top 10.
+- Audio deshabilitado por defecto: Florida §934.03 exige consentimiento de todas las partes.
+- Blink Mini fuera de alcance: protocolo cloud propietario, sin RTSP/ONVIF.
+
+[Unreleased]: https://github.com/higerotech/nvr-frigate/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/higerotech/nvr-frigate/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/higerotech/nvr-frigate/releases/tag/v0.1.0

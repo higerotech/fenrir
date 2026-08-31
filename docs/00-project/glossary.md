@@ -1,6 +1,6 @@
 # Glosario / Lenguaje Ubicuo (DDD)
 
-* **Estado:** draft
+* **Estado:** approved (Gate 0, 2026-08-30)
 * **Fecha:** 2026-08-30
 * **Decisores:** Jeremi
 * **Fase AI-DLC:** 00-project
