@@ -13,6 +13,8 @@
 - [ ] Equivalente DAST: `nmap -Pn <IP-WAN> -p 8971,8554,8555,1883` desde fuera → todo filtrado
 - [ ] Rendimiento dentro de SLO: CPU sostenida <50 %, latencia de vivo ≤2 s (LAN y WireGuard),
       evento en `frigate/events` <3 s tras la detección
+- [ ] Memoria dentro de RNF03 (T-17/T-18): Frigate <80 % de su límite, host con ≥4 GB
+      disponibles, swap del NVR en 0, y el `tmpfs` se drena tras un export
 - [ ] **HITL**: Jeremi acepta el resultado de la medición de carga (entrada de ADR-0002)
 
 Al aprobar: cortar → `0.4.0`.

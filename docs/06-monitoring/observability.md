@@ -32,6 +32,9 @@ sola fuente sin instrumentación propia.
 | CPU sostenida del NVR | `frigate_cpu_usage_percent` + `docker stats` | <50 % sostenido | Charter, RNF01, T2 | **Provisional** |
 | Frames descartados | `frigate_skipped_fps` | = 0 | T2 (canario del detector) | Fijo |
 | Ocupación del media store | `frigate_storage_used_bytes / frigate_storage_total_bytes` | <90 % | Charter, T1 | Fijo |
+| Memoria del contenedor Frigate | `frigate_mem_usage_percent` + `docker stats` | <80 % de su `mem_limit` de 3 GB | RNF03, T7 | Fijo |
+| Memoria disponible del host | `MemAvailable` de `/proc/meminfo` | ≥4 GB con el NVR en marcha | RNF03, T7 | **Provisional** |
+| Swap atribuible al NVR | `/proc/meminfo` + `docker stats` | 0 en régimen normal | RNF03 | Fijo |
 | Disponibilidad por cámara | `frigate_camera_fps` > 0 y `frigate/available` | ≥99 % mensual | RF01 | **Provisional** |
 | Retraso detección → MQTT | Marca de tiempo del evento contra la recepción | <3 s | PRD, RF05 | Fijo |
 | Coste de inferencia | `frigate_detector_inference_speed_seconds` | Sin tendencia creciente | ADR-0001 (deuda del detector CPU) | Observar |
@@ -41,7 +44,8 @@ sola fuente sin instrumentación propia.
 usa como disparador de decisión, no como castigo: si la disponibilidad de una cámara baja
 del 99 % mensual (≈7 h), la causa se investiga antes de añadir cámaras nuevas. Si la CPU
 supera el 50 % sostenido dos semanas seguidas, se reabre ADR-0002 — esa es su condición de
-revisión escrita.
+revisión escrita. Y si el NVR empieza a swapear, el presupuesto se considera agotado de
+inmediato: swapear castiga al mismo HDD que está grabando, así que el síntoma se realimenta.
 
 **La métrica que importa de verdad es la última.** Todo lo demás mide el NVR; esa mide el
 daño colateral al router, que es el riesgo real de haber elegido un host compartido.
@@ -89,6 +93,7 @@ solo se anota **dónde se engancha la telemetría** (regla anti-ruido: un objeto
 | Contenedor `frigate` | Eventos y disponibilidad | MQTT `frigate/#` | Igual que los eventos |
 | Contenedor `frigate` | Logins fallidos de la UI (A09) | `docker logs frigate` | 30 MB por rotación (3×10 MB) |
 | Host / appliance | CPU, carga, salud del enrutamiento | `htop`, ping a la WAN | Manual |
+| Host / appliance | Memoria disponible y swap | `/proc/meminfo`, `docker stats` | Ventana de 24 h en Node-RED |
 | `/srv/frigate` | Ocupación | Métrica de storage; `df -h` como respaldo | Manual |
 
 **Detalle de despliegue que hay que resolver, no descubrir.** `/api/metrics` está en el
@@ -105,7 +110,9 @@ porque ese puerto no tiene autenticación.
 | Cámara caída | `camera_fps` = 0 durante 5 min, o `frigate/available` = offline | Alta | RF01 | Runbook I-1 |
 | Detector saturado | `skipped_fps` > 0 en 3 muestras | Media | T2 | Runbook I-3 |
 | CPU sostenida | >50 % durante 15 min | Media | RNF01, ADR-0002 | Runbook I-3 |
-| Contenedor reiniciando | Uptime se reinicia más de 3 veces en 1 h | Alta | A10 | Runbook I-4 |
+| Memoria del host baja | `MemAvailable` <1,5 GB en 3 muestras | Alta | RNF03, T7 | Runbook I-6 |
+| Frigate cerca de su límite | `frigate_mem_usage_percent` >80 % en 3 muestras, o crecimiento monótono en 24 h | Media | RNF03, T7 | Runbook I-6 |
+| Contenedor reiniciando | Uptime se reinicia más de 3 veces en 1 h. **Con `mem_limit`, un reinicio repetido suele ser OOM del contenedor**: confirmar con `docker inspect frigate --format '{{.State.OOMKilled}}'` | Alta | A10, T7 | Runbook I-4 |
 | Enrutamiento degradado | Pérdida o latencia anómala hacia la WAN | **Crítica** | ADR-0002 | Runbook I-5 |
 
 Destino de las notificaciones: el que ya use el stack Node-RED existente. Una alerta que solo
@@ -158,6 +165,17 @@ evidencia con la que se decide el ciclo 2.
 de validación de config, restaurar el backup de `/srv/frigate/config` y aplicar el flujo del
 §9 del runbook. Si empezó tras una subida de versión, hacer rollback al tag anterior — para
 eso está pineado.
+
+**I-6 · Presión de memoria.** Primero separar quién la consume: `docker stats --no-stream`
+contra `free -h`. Si el contenedor está cerca de sus 3 GB, mirar de dónde sale — el `tmpfs`
+cuenta dentro del límite, así que `docker exec frigate df -h /tmp/cache` es la comprobación
+clave. **Si el tmpfs está lleno, el problema real es el disco, no la memoria**: la caché no
+puede drenar al HDD y crece hacia su techo (acoplamiento T1→T7); ir al runbook I-2 y volver.
+Si el tmpfs está vacío y el RSS sube solo, es una fuga: reiniciar el contenedor recupera el
+servicio y anotar el episodio, porque sin historial de métricas (ADR-0005) una fuga lenta
+solo se ve por acumulación de episodios. Si quien consume es el host y no el NVR, el NVR es
+la víctima y no la causa. Lo que **no** hay que hacer es subir el `mem_limit` para que deje
+de avisar: ese límite es lo que impide que el OOM killer se lleve a `dnsmasq` por delante.
 
 **I-5 · Enrutamiento degradado (crítica).** El router manda sobre el NVR, siempre.
 `docker compose stop` para devolverle la máquina al enrutamiento, confirmar que se recupera,

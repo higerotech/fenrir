@@ -7,7 +7,7 @@
 * **Versión:** 0.4.0
 * **Gate:** 3
 * **Alcance de prueba:** sistema desplegado en el appliance (no hay unidades que probar)
-* **Requisitos cubiertos:** RF01–RF05, RNF01–RNF02, SR01–SR06, abusos A1–A6
+* **Requisitos cubiertos:** RF01–RF05, RNF01–RNF03, SR01–SR06, abusos A1–A6
 
 ## Estrategia
 
@@ -90,6 +90,12 @@ requirementDiagram
       risk: high
       verifymethod: analysis
     }
+    requirement RNF03 {
+      id: RNF03
+      text: Memoria acotada y host con 4 GB disponibles
+      risk: high
+      verifymethod: analysis
+    }
     requirement SR01 {
       id: SR01
       text: UI solo autenticada y sin exposicion WAN
@@ -117,6 +123,9 @@ requirementDiagram
     element T_Carga {
       type: "caso de prueba"
     }
+    element T_Memoria {
+      type: "caso de prueba"
+    }
     element T_Exposicion {
       type: "caso de prueba"
     }
@@ -128,6 +137,7 @@ requirementDiagram
     T_Latencia - verifies -> RF04
     T_Eventos - verifies -> RF05
     T_Carga - verifies -> RNF01
+    T_Memoria - verifies -> RNF03
     T_Exposicion - verifies -> SR01
     T_Audio - verifies -> SR06
 ```
@@ -155,6 +165,8 @@ la última columna. Un caso sin evidencia **no cuenta como aprobado**.
 | T-14 | RF02 | Al día 4: buscar el segmento continuo más antiguo | Nada anterior a 3 días, el disco no crece sin límite | |
 | T-15 | RF02 | Al día 15: revisar alertas y snapshots antiguos | Nada anterior a 14 días | |
 | T-16 | — | Exportar un clip desde la UI | El archivo exportado existe y se reproduce | |
+| T-17 | RNF03 | Durante los 15 min de T-11: `docker stats --no-stream` y `free -h` | Frigate <80 % de sus 3 GB; `MemAvailable` del host ≥4 GB; swap del NVR en 0 | |
+| T-18 | RNF03 | Tras T-16 (exportar un clip largo): `docker exec frigate df -h /tmp/cache` | El `tmpfs` se drena tras el export y no queda ocupado | |
 
 ## Pruebas de seguridad (equivalente DAST) — los abusos del PRD como casos
 
@@ -165,7 +177,7 @@ la última columna. Un caso sin evidencia **no cuenta como aprobado**.
 | S-03 | A2 / T5 | `sudo ss -lntup` filtrando los puertos del proyecto | Ninguna línea con `0.0.0.0` ni `*` |
 | S-04 | A2 / T5 | Desde datos móviles: `nmap -Pn <IP-WAN> -p 8971,8554,8555,1883` | Los cuatro `filtered`, repitiendo por cada WAN |
 | S-05 | A3 | Desde una cámara, o simulando su IP, intentar salir a internet | Bloqueado por la regla de egress |
-| S-06 | A4 | Rellenar `/srv/frigate` hasta el 92 % con `fallocate` y esperar | Salta la alerta de watermark, el router no se degrada. **Borrar el archivo al terminar** |
+| S-06 | A4 / T1→T7 | Rellenar `/srv/frigate` hasta el 92 % con `fallocate` y esperar. Vigilar a la vez `docker exec frigate df -h /tmp/cache` y `free -h` | Salta la alerta de watermark; el router no se degrada; **y el `tmpfs` no arrastra la memoria del host**: si Frigate muere, lo hace por su `mem_limit` y no se lleva a `dnsmasq`. **Borrar el archivo al terminar** |
 | S-07 | A5 | `mosquitto_sub -t '#'` sin credenciales | Rechazado por `allow_anonymous false` |
 | S-08 | SR05 | `docker image inspect` del digest desplegado contra el registrado en la fase 03 | Coinciden |
 | S-09 | A1 | Diez intentos de login fallidos seguidos | Quedan registrados y son revisables en el log (A09) |
@@ -195,6 +207,7 @@ justo lo que se quería conservar. Se verifican por observación en T-15.
 
 ## Criterio de salida del Gate 3
 
-Todos los T-xx y S-xx con evidencia anotada, T-12 en cero y T-11 dentro del presupuesto.
+Todos los T-xx y S-xx con evidencia anotada, T-12 en cero, y T-11 y T-17 dentro de sus
+presupuestos (CPU y memoria).
 Si T-11 o T-12 fallan **no se fuerza el gate**: se aplica la palanca prevista (bajar
 `detect.fps` a 4, luego `cpuset`) y se vuelve a medir. Si aun así falla, se reabre ADR-0002.

@@ -80,6 +80,7 @@ mindmap
 - Latencia de vista en vivo ≤ 2 s (go2rtc/WebRTC) en LAN y por WireGuard.
 - 0 puertos del NVR alcanzables desde las WAN (verificado con escaneo externo).
 - CPU sostenida del contenedor Frigate < 50 % con 2 cámaras.
+- Memoria: el host conserva ≥4 GB disponibles con el NVR en marcha (RNF03).
 - Retención cumplida sin llenar el disco (watermark < 90 %).
 
 ## Riesgos de alto nivel

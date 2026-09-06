@@ -4,7 +4,7 @@
 * **Fecha:** 2026-08-30
 * **Decisores:** Jeremi
 * **Fase AI-DLC:** 01-requirements
-* **Versión:** 0.1.0
+* **Versión:** 0.1.1 (enmienda 2026-09-05: RNF03, ver nota al pie)
 * **Gate:** 0
 * **Feature/Épica ID:** NVR-MVP-001
 * **Nivel ASVS objetivo:** L1
@@ -101,6 +101,25 @@ journey
 | RF05 | Publicar eventos en MQTT (`frigate/events`) consumibles por Node-RED |
 | RNF01 | CPU sostenida del NVR <50 % para no degradar el enrutamiento |
 | RNF02 | Decodificación por hardware VAAPI (i965) |
+| RNF03 | Memoria del proyecto NVR acotada: el host debe conservar ≥4 GB disponibles |
+
+**Enmienda 2026-09-05 (posterior al Gate 0).** RNF03 se añade tras detectar que el
+presupuesto de recursos solo cubría CPU. En un host compartido con el router, agotar la
+memoria hace tanto daño como agotar la CPU, y no había requisito, ni SLO, ni prueba.
+No reabre el Gate 0: sus criterios (abuso, ASVS, threat assessment, clasificación) siguen
+satisfechos; esto los refuerza. El presupuesto concreto:
+
+| Componente | Techo | Cómo se impone |
+|---|---|---|
+| Contenedor `frigate` (incluye tmpfs y shm) | 3 GB | `mem_limit` en el compose |
+| Contenedor `mosquitto` | 128 MB | `mem_limit` |
+| **Total del proyecto** | **≤3,2 GB de los 8 GB** | Suma de los anteriores |
+| `MemAvailable` del host en régimen normal | ≥4 GB | Alerta (fase 06) |
+| Swap atribuible al NVR | 0 en régimen normal | Alerta: swapear castiga al mismo HDD que graba |
+
+El límite del contenedor tiene que cubrir el `tmpfs` (techo 954 MiB) y el `shm` (128 MiB)
+además del RSS: en cgroup v2 esas páginas se cargan al cgroup del contenedor, no al host.
+Por eso 3 GB y no 2 — con 2 GB quedarían 966 MiB para procesos, sin margen.
 
 ## Trazabilidad de requisitos
 
