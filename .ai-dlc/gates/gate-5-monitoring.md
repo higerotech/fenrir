@@ -7,6 +7,7 @@
 - [ ] Watchdog de disponibilidad: Node-RED suscrito a `frigate/available`; alerta si `offline`
 - [ ] Alerta de disco al 90 % en `/srv/frigate` (T1) con destino real (no solo un log)
 - [ ] Alerta de CPU sostenida >50 % (T2), que es la condición de reapertura de ADR-0002
+- [ ] Alertas de memoria (T7): `MemAvailable` del host <1,5 GB y Frigate >80 % de su límite
 - [ ] Logging de seguridad (A09): logins fallidos de la UI de Frigate revisables
 - [ ] `sequenceDiagram` señal→alerta→on-call y `stateDiagram-v2` del ciclo de incidente
 - [ ] Proceso de incidentes escrito: cámara caída, disco lleno, contenedor en crash-loop,

@@ -18,7 +18,11 @@ services:
     container_name: frigate
     restart: unless-stopped
     stop_grace_period: 30s
-    shm_size: "128mb"                # suficiente para 2 cámaras detect 640x360
+    # RNF03 — el limite debe cubrir tmpfs (954 MiB) + shm (128 MiB) + procesos: en cgroup v2
+    # esas paginas se cargan al contenedor. Sin limite, el OOM killer del kernel elige
+    # victima por heuristica y puede llevarse dnsmasq (DNS/DHCP de la casa) en vez de Frigate.
+    mem_limit: 3g
+    shm_size: "128mb"                # 53,7 MB necesarios a 640x360 x2 + logs; holgura x2,4
     <<: *logging
     devices:
       - /dev/dri/renderD128:/dev/dri/renderD128   # VAAPI (Intel HD 2500)
@@ -50,6 +54,7 @@ services:
   mosquitto:
     image: eclipse-mosquitto:2
     container_name: mosquitto
+    mem_limit: 128m                  # RNF03; el broker real usa ~10 MB
     restart: unless-stopped
     <<: *logging
     volumes:

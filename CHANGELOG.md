@@ -11,6 +11,18 @@ Cada versión corresponde al cierre de un gate AI-DLC, según las reglas de `.ai
 
 ### Añadido
 
+- **RNF03 — presupuesto de memoria** (enmienda al PRD posterior al Gate 0). El presupuesto de
+  recursos solo cubría CPU: en un host compartido con el router, agotar la memoria hace tanto
+  daño como agotar la CPU, y no había requisito, ni SLO, ni prueba. Techos: contenedor
+  `frigate` 3 GB, `mosquitto` 128 MB, `MemAvailable` del host ≥4 GB, swap del NVR en 0.
+- **T7 en el threat model**: agotamiento de memoria del host. Sin límite por contenedor, el
+  OOM killer del kernel elige víctima por heurística y puede matar `dnsmasq` — DNS y DHCP de
+  toda la casa — en vez de Frigate. DREAD 5.4.
+- Observabilidad de memoria: SLIs (`frigate_mem_usage_percent`, `MemAvailable`, swap), dos
+  alertas nuevas y el runbook de incidente **I-6 · Presión de memoria**.
+- Casos **T-17** (memoria durante los 15 min de T-11) y **T-18** (el `tmpfs` se drena tras un
+  export); S-06 pasa a vigilar también la memoria mientras simula el disco lleno.
+
 - Checklists de Gates 2–5 adaptados a un proyecto COTS-configuración (sin código propio).
 - `docs/03-implementation/config-baseline.md` (Gate 2): inventario de artefactos, gitGraph de
   ramas y releases, validación de config (equivalente SAST) y cadena de suministro con
@@ -23,6 +35,16 @@ Cada versión corresponde al cierre de un gate AI-DLC, según las reglas de `.ai
   al ciclo 2.
 - ADR-0005 (observabilidad sobre Node-RED en vez de Prometheus/Grafana, por
   proporcionalidad). En `proposed`: se aprueba al cerrar el Gate 4.
+
+### Cambiado
+
+- `deploy/docker-compose.yml`: `mem_limit` de 3 GB en `frigate` y 128 MB en `mosquitto`.
+  El límite se dimensiona a 3 GB y no a 2 porque en cgroup v2 el `tmpfs` (techo 954 MiB) y
+  el `shm` (128 MiB) se cargan al cgroup del contenedor: con 2 GB quedarían 966 MiB para
+  procesos, sin margen sobre el RSS estimado.
+- T1 gana una dimensión que no tenía: **escala a memoria**. El `tmpfs` es donde aterrizan los
+  segmentos antes de moverse al HDD, así que un disco lleno impide drenar la caché y esta
+  crece en RAM. El acoplamiento T1→T7 es lo que motivó el requisito.
 
 ### Spike cerrado — resultado negativo (NVR-SPIKE-002)
 
