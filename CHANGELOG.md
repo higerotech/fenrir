@@ -37,6 +37,10 @@ eso los gates reservan *el siguiente* MINOR y no un número fijo — ver `.ai-dl
   continuo**: 43 GB/día replicados reintroducen el I/O de red que la ADR descarta.
 - **T8** en el threat model: el NAS es una segunda ubicación de video Confidencial y hereda
   su clasificación. DREAD 4,8.
+- `deploy/backup/`: `snapshot-db.sh` (appliance) y `pull-from-appliance.sh` (NAS), ambos por
+  cron, con su README. La base **no se copia con rsync directamente**: sobre una SQLite viva
+  eso puede dar un fichero roto, así que un cron previo genera un snapshot consistente con
+  `sqlite3 .backup`, validado con `integrity_check` y publicado con un `mv` atómico.
 - Paso 8bis del runbook (cuenta `nvrbackup` restringida por `command=`), casos T-19
   (restauración real), T-20 (el NVR sobrevive al NAS apagado) y S-10 (la cuenta de respaldo
   no puede escribir), SLI de frescura del respaldo y runbook de incidente I-7.

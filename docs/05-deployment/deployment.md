@@ -178,7 +178,13 @@ router). Intención de reglas, a integrar en el ruleset del proyecto de red:
 
 ## Paso 8bis — Respaldo al NAS (ADR-0006)
 
-El appliance **no monta nada**: la tarea la inicia el NAS. Aquí solo se prepara el acceso.
+El appliance **no monta nada**: la tarea la inicia el NAS. Los dos scripts y sus dos crons
+están en `deploy/backup/` con su propio README; aquí solo el acceso desde el appliance.
+
+**La base de datos se respalda aparte y por una razón**: `rsync` sobre una SQLite viva puede
+dar un fichero roto, y una copia rota parece un respaldo hasta el día que la necesitas. Un
+cron en el appliance ejecuta `snapshot-db.sh` (usa `sqlite3 .backup`, valida con
+`integrity_check` y publica con un `mv` atómico) poco antes de que el NAS tire.
 
 ```bash
 sudo useradd -r -m -s /bin/bash nvrbackup

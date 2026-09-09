@@ -70,5 +70,10 @@ script de respaldo, nunca desde ninguna ruta que Frigate toque.
 - Impacto en threat model: introduce **T8** — el NAS pasa a ser una segunda ubicación de video
   Confidencial y hereda su clasificación. Su control de acceso y su cifrado en reposo son
   ahora parte de la postura del NVR, no un asunto aparte.
+- Implementación: `deploy/backup/` — `snapshot-db.sh` en el appliance y
+  `pull-from-appliance.sh` en el NAS, ambos por cron.
+- Detalle que no es opcional: `frigate.db` **no se copia con rsync directamente**. Sobre una
+  SQLite viva eso puede producir un fichero roto, así que un cron en el appliance genera
+  antes un snapshot consistente con `sqlite3 .backup` y es ese el que viaja.
 - Verificación: T-19 (el respaldo corre y un archivo restaurado se reproduce). Sin esa prueba,
   esto es una intención, no un control.
