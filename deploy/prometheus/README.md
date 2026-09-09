@@ -10,7 +10,7 @@ trazados a los requisitos que los justifican.
 | Fichero | Qué es | Dónde se instala |
 |---|---|---|
 | `fenrir-job.yml` | Scrape de `fenrir:5000` por la red Docker compartida | Bloque `scrape_configs` del `prometheus.yml` |
-| `fenrir-rules.yml` | 6 alertas del NVR | Directorio de reglas, como `rules/fenrir-alertas.yml` |
+| `fenrir-rules.yml` | 7 alertas del NVR | Directorio de reglas, como `rules/fenrir-alertas.yml` |
 | `node-exporter.compose.yml` | Servicio `node_exporter` | Compose de la plataforma |
 | `node-exporter-job.yml` | Scrape de `host.docker.internal:9100` | Bloque `scrape_configs` |
 | `host-rules.yml` | 7 alertas de host | Directorio de reglas |
