@@ -167,6 +167,9 @@ la última columna. Un caso sin evidencia **no cuenta como aprobado**.
 | T-16 | — | Exportar un clip desde la UI | El archivo exportado existe y se reproduce | |
 | T-17 | RNF03 | Durante los 15 min de T-11: `docker stats --no-stream` y `free -h` | Frigate <80 % de sus 3 GB; `MemAvailable` del host ≥4 GB; swap del NVR en 0 | |
 | T-18 | RNF03 | Tras T-16 (exportar un clip largo): `docker exec frigate df -h /tmp/cache` | El `tmpfs` se drena tras el export y no queda ocupado | |
+| T-23 | ADR-0008 | Tras dar de alta al usuario `frigate`, comprobar que **los clientes MQTT que ya existían siguen conectando** | Ninguno pierde acceso. `mosquitto_passwd -c` habría borrado el fichero entero, y este caso es el que lo detecta |
+| T-24 | ADR-0008 | `docker exec frigate ffmpeg -hwaccel vaapi -hwaccel_device /dev/dri/renderD128 -i ... -f null -` y `intel_gpu_top` durante la grabación | Sin *permission denied*. Sin `group_add`, VAAPI falla y Frigate cae a CPU sin decirlo claramente |
+| T-25 | ADR-0008 | En Prometheus: `up{job="frigate"}` y una consulta a `frigate_camera_fps` | El target aparece *up* y las métricas llegan, **sin haber publicado el 5000** |
 | T-19 | ADR-0006 | Lanzar la tarea del NAS; luego **restaurar** un archivo cualquiera desde el NAS y reproducirlo | El respaldo completa, y el archivo restaurado se reproduce. Un respaldo nunca restaurado no es un respaldo | |
 | T-20 | ADR-0006 | Apagar el NAS y dejar el NVR 30 min | Grabación, vivo y eventos siguen sin inmutarse: el appliance no monta nada del NAS | |
 | T-21 | ADR-0007 | `ip route get <ip-cam>` antes y después de forzar un failover dual-WAN | La ruta no cambia de interfaz. Es una ruta conectada, así que se espera que pase: el caso existe para **confirmar la premisa**, no para validar una regla | |
@@ -183,7 +186,8 @@ la última columna. Un caso sin evidencia **no cuenta como aprobado**.
 | S-11 | ADR-0007 | Desde un equipo del segmento de las cámaras, intentar alcanzar la LAN del appliance y la UI del NVR | Todo rechazado por el `default drop` de entrada WAN. Confirma que el NVR sigue siendo solo cliente saliente y que SR02 se mantiene |
 | S-05 | A3 | Desde una cámara, o simulando su IP, intentar salir a internet | Bloqueado por la regla de egress |
 | S-06 | A4 / T1→T7 | Rellenar `/srv/frigate` hasta el 92 % con `fallocate` y esperar. Vigilar a la vez `docker exec frigate df -h /tmp/cache` y `free -h` | Salta la alerta de watermark; el router no se degrada; **y el `tmpfs` no arrastra la memoria del host**: si Frigate muere, lo hace por su `mem_limit` y no se lleva a `dnsmasq`. **Borrar el archivo al terminar** |
-| S-07 | A5 | `mosquitto_sub -t '#'` sin credenciales | Rechazado por `allow_anonymous false` |
+| S-07 | A5 | `mosquitto_sub -t '#'` sin credenciales contra el broker existente | Rechazado por `allow_anonymous false` |
+| S-12 | ADR-0008 | Con las credenciales de `frigate`, intentar publicar y suscribirse **fuera** de `frigate/#` | Rechazado por el `acl_file`: el usuario del NVR no ve el resto del tráfico del hogar |
 | S-08 | SR05 | `docker image inspect` del digest desplegado contra el registrado en la fase 03 | Coinciden |
 | S-10 | T8 | Desde la cuenta `nvrbackup` por SSH: intentar escribir, borrar o salir del árbol `/srv/frigate` | Todo rechazado: la clave está restringida por `command=` a rsync de solo lectura |
 | S-09 | A1 | Diez intentos de login fallidos seguidos | Quedan registrados y son revisables en el log (A09) |

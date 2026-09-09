@@ -26,6 +26,11 @@ services:
     <<: *logging
     devices:
       - /dev/dri/renderD128:/dev/dri/renderD128   # VAAPI (Intel HD 2500)
+    # Mapear el dispositivo NO da pertenencia al grupo dentro del contenedor: renderD128 es
+    # root:render y sin esto ffmpeg falla con permission denied y Frigate cae a decodificar
+    # por CPU sin decirlo claramente. El GID es del host: `getent group render`.
+    group_add:
+      - "${RENDER_GID}"
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /srv/frigate/config:/config
@@ -39,7 +44,8 @@ services:
       - "${FRIGATE_LAN_IP}:8554:8554"        # go2rtc restream RTSP
       - "${FRIGATE_LAN_IP}:8555:8555/tcp"    # WebRTC
       - "${FRIGATE_LAN_IP}:8555:8555/udp"
-      # Puerto 5000 (API sin auth) deliberadamente NO publicado (T6)
+      # Puerto 5000 (API sin auth) deliberadamente NO publicado (T6). Prometheus lo alcanza
+      # por la red `iot`, que es justo el motivo de no tener que publicarlo.
     environment:
       LIBVA_DRIVER_NAME: i965        # driver correcto para Ivy Bridge (2.ª-6.ª gen)
       FRIGATE_RTSP_USER: ${FRIGATE_RTSP_USER}
@@ -48,23 +54,15 @@ services:
       FRIGATE_LAN_IP: ${FRIGATE_LAN_IP}      # usado por go2rtc.webrtc.candidates (RF04)
       FRIGATE_CAM1_IP: ${FRIGATE_CAM1_IP}    # las IPs reales viven solo en .env (repo publico)
       FRIGATE_CAM2_IP: ${FRIGATE_CAM2_IP}
-    depends_on:
-      - mosquitto
+    networks:
+      - iot
 
-  mosquitto:
-    image: eclipse-mosquitto:2
-    container_name: mosquitto
-    mem_limit: 128m                  # RNF03; el broker real usa ~10 MB
-    restart: unless-stopped
-    <<: *logging
-    volumes:
-      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      - ./mosquitto/passwd:/mosquitto/config/passwd:ro
-      - mosquitto-data:/mosquitto/data
-    ports:
-      # Solo para clientes MQTT fuera de esta red compose (Node-RED en el host u otra máquina).
-      # Si Node-RED acaba en este mismo proyecto compose, eliminar este mapeo entero.
-      - "${FRIGATE_LAN_IP}:1883:1883"
-
-volumes:
-  mosquitto-data:
+# ADR-0008: el NVR no trae broker propio. Se une a la red del stack ya desplegado en el
+# host, donde viven el broker MQTT, Node-RED, Prometheus y Alertmanager. Consecuencias:
+#   - No hay colisión en 1883: ese puerto ya lo sirve el broker existente.
+#   - Ni 1883 ni 5000 se publican en ningún sitio. Prometheus raspa `frigate:5000` por la
+#     red interna, así que T6 queda intacto en vez de mitigado a medias.
+networks:
+  iot:
+    external: true
+    name: ${IOT_NETWORK}

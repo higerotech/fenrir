@@ -1,13 +1,20 @@
 # ADR-0005: Observabilidad sobre Node-RED en vez de un stack Prometheus/Grafana
 
-* **Estado:** proposed (HITL: aprobar al cerrar el Gate 4)
+* **Estado:** **superseded por ADR-0008** (2026-09-09). Nunca llegó a aceptarse.
 * **Fecha:** 2026-08-30
 * **Decisores:** Jeremi
 * **Fase AI-DLC:** 06-monitoring
 * **Versión:** 1.0.0
 * **ID:** ADR-0005
-* **Supersede / Superseded-by:** —
+* **Supersede / Superseded-by:** superseded-by ADR-0008
 * **Controles OWASP afectados:** A09 (logging y monitorización), A02 (superficie añadida)
+
+> **Por qué cayó.** Su argumento era de proporcionalidad: que Prometheus y Grafana costarían
+> *"~300–500 MB de RAM y CPU constante en el host que hay que proteger"*. La inspección del
+> host del 2026-09-09 mostró que **ya estaban desplegados y corriendo**, junto con
+> Alertmanager. La premisa era falsa, así que la decisión no se sostiene. Se conserva el
+> documento porque el razonamiento sigue siendo válido *para un host donde no existieran*, y
+> porque la deuda que aceptaba —no tener historial— resultó ser justo lo que hacía falta.
 
 ## Contexto
 El Gate 5 exige SLOs monitorizados y alertas que lleguen a una persona. Frigate 0.17 expone
