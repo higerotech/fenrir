@@ -55,6 +55,7 @@ cameras:
         - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM1_IP}:554/stream2
           roles: [detect]
     detect:
+      enabled: true    # 0.17 lo trae en False por defecto: sin esto no hay deteccion (RF03)
       width: 640
       height: 360
       fps: 5
@@ -71,6 +72,7 @@ cameras:
         - path: rtsp://{FRIGATE_RTSP_USER}:{FRIGATE_RTSP_PASSWORD}@{FRIGATE_CAM2_IP}:554/stream2
           roles: [detect]
     detect:
+      enabled: true    # 0.17 lo trae en False por defecto: sin esto no hay deteccion (RF03)
       width: 640
       height: 360
       fps: 5
