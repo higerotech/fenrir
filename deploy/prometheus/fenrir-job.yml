@@ -7,10 +7,11 @@
 # El objetivo es el puerto 5000, que no está publicado: Prometheus lo alcanza por la red
 # Docker compartida. Ese es justamente el motivo por el que T6 sigue intacto.
 #
-# Nota de convención: el resto de jobs del host usan nomenclatura nórdica. Si se quiere
-# mantener, renombrar `frigate` por lo que corresponda y ajustar las reglas en consecuencia.
-- job_name: frigate
+# El nombre sigue la convención nórdica del host (`mimir`, `gjallarhorn`, `huginn_muninn`,
+# `sleipnir`): el job se llama como el servicio, `fenrir`. El objetivo es el nombre de
+# servicio del compose, no el del contenedor — igual que `gjallarhorn:9093`.
+- job_name: fenrir
   scrape_interval: 30s
   metrics_path: /api/metrics
   static_configs:
-    - targets: ["frigate:5000"]
+    - targets: ["fenrir:5000"]

@@ -14,21 +14,21 @@
 
 ```mermaid
 C4Deployment
-    title Despliegue — NVR en el appliance compartido
+    title Despliegue — Fenrir en el appliance compartido
 
     Deployment_Node(lan, "LAN domestica", "Trust boundary nftables") {
         Deployment_Node(cams, "Segmento camaras", "Reservas DHCP dnsmasq, egress deny") {
-            Container(cam1, "Tapo C310 num 1", "RTSP/ONVIF", "stream1 1080p + stream2 640x360")
-            Container(cam2, "Tapo C310 num 2", "RTSP/ONVIF", "stream1 1080p + stream2 640x360")
+            Container(cam1, "Tapo C310 num 1", "RTSP/ONVIF", "stream1 2304x1296 + stream2 640x360")
+            Container(cam2, "Tapo C310 num 2", "RTSP/ONVIF", "stream1 2304x1296 + stream2 640x360")
         }
         Deployment_Node(appliance, "Appliance i3-3240", "Ubuntu 24.04, tambien router") {
-            Deployment_Node(docker, "Docker Engine", "compose project nvr") {
-                Container(frigate, "frigate", "ghcr 0.17.2, VAAPI i965", "Puertos 8971/8554/8555")
-                Container(mosq, "mosquitto", "eclipse-mosquitto:2", "Puerto 1883, auth passwd")
+            Deployment_Node(docker, "Docker Engine", "compose project fenrir") {
+                Container(fenrir, "fenrir-frigate", "ghcr 0.17.2, VAAPI i965", "Puertos 8971/8554/8555")
+                Container(mosq, "yggdrasil-mosquitto", "eclipse-mosquitto:2", "Broker YA existente, otro proyecto (ADR-0008)")
             }
             Deployment_Node(disco, "HDD SATA", "ext4") {
-                ContainerDb(media, "/srv/frigate/media", "Segmentos y clips", "Retencion 3/14 dias")
-                ContainerDb(cfg, "/srv/frigate/config", "config.yml + frigate.db", "Backup antes de upgrades")
+                ContainerDb(media, "/srv/fenrir/media", "Segmentos y clips", "Retencion 5/14 dias")
+                ContainerDb(cfg, "/srv/fenrir/config", "config.yml + frigate.db", "Backup antes de upgrades")
             }
         }
     }
@@ -36,11 +36,11 @@ C4Deployment
         Container(cliente, "Navegador / app", "WebRTC", "Vista en vivo y revision")
     }
 
-    Rel(cam1, frigate, "RTSP a", "554/tcp")
-    Rel(cam2, frigate, "RTSP a", "554/tcp")
-    Rel(frigate, media, "Graba en", "ext4")
-    Rel(frigate, mosq, "Publica eventos", "1883/tcp")
-    Rel(cliente, frigate, "Accede via tunel", "WireGuard UDP")
+    Rel(cam1, fenrir, "RTSP a", "554/tcp")
+    Rel(cam2, fenrir, "RTSP a", "554/tcp")
+    Rel(fenrir, media, "Graba en", "ext4")
+    Rel(fenrir, mosq, "Publica eventos", "1883/tcp")
+    Rel(cliente, fenrir, "Accede via tunel", "WireGuard UDP")
     UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
 ```
 
@@ -116,11 +116,11 @@ antes de continuar. Los puertos publicados por Docker se controlan además desde
 ## Paso 3 — Preparar almacenamiento y verificación VAAPI
 
 > **No hay volumen dedicado y no se puede tallar uno** (verificado 2026-09-09: el grupo de
-> volúmenes no tiene espacio sin asignar). `/srv/frigate` vive en la raíz, compartida con el
+> volúmenes no tiene espacio sin asignar). `/srv/fenrir` vive en la raíz, compartida con el
 > resto de servicios del host. Consecuencia práctica: la alerta de disco baja al 85 % y pasa
 > a ser el control principal de T1, no el secundario.
 ```bash
-sudo mkdir -p /srv/frigate/{config,media}
+sudo mkdir -p /srv/fenrir/{config,media}
 sudo apt-get install -y vainfo intel-gpu-tools
 LIBVA_DRIVER_NAME=i965 vainfo   # debe listar perfiles H264 (VAEntrypointVLD)
 getent group render | cut -d: -f3   # -> este GID va a RENDER_GID en el .env
@@ -130,10 +130,10 @@ contenedor (Frigate trae sus drivers), pero confirma que `/dev/dri/renderD128` e
 
 ## Paso 4 — Desplegar los archivos del proyecto
 ```bash
-sudo mkdir -p /opt/nvr && cd /opt/nvr
+sudo mkdir -p /opt/fenrir && cd /opt/fenrir
 # copiar deploy/docker-compose.yml, deploy/.env.example → .env, deploy/mosquitto/, deploy/frigate/
 cp deploy/.env.example .env && chmod 600 .env && nano .env   # rellenar credenciales reales
-cp deploy/frigate/config.yml /srv/frigate/config/config.yml
+cp deploy/frigate/config.yml /srv/fenrir/config/config.yml
 ```
 `config.yml` no lleva ninguna IP ni credencial: todo entra por variables `FRIGATE_*` desde
 el `.env`. Lo único editable en el YAML son los nombres de cámara (`cam_01`, `cam_02`) y las
@@ -169,8 +169,8 @@ docker restart <contenedor-mosquitto>   # recarga passwd y acl
 
 ## Paso 6 — Arranque
 ```bash
-cd /opt/nvr && docker compose up -d
-docker compose logs -f frigate   # buscar la línea con la contraseña admin generada
+cd /opt/fenrir && docker compose up -d
+docker compose logs -f fenrir   # buscar la línea con la contraseña admin generada
 ```
 Primer login: `https://IP-LAN:8971` con el usuario `admin` y la contraseña impresa en el
 log (certificado autofirmado: aceptar). Cambiar la contraseña desde Settings → Users.
@@ -182,7 +182,7 @@ log (certificado autofirmado: aceptar). Cambiar la contraseña desde Settings �
 > ADR-0004, que es el control de T1, no se aplica y la media crece sin límite.
 >
 > ```bash
-> docker logs frigate 2>&1 | grep -iE "safe mode|Config Validation Errors" | head
+> docker logs fenrir-frigate 2>&1 | grep -iE "safe mode|Config Validation Errors" | head
 > ```
 > Cualquier salida aquí significa que la configuración **no** está en vigor. El log dice
 > línea y clave exactas; corregir y **volver a `docker compose up -d`**.
@@ -194,7 +194,7 @@ log (certificado autofirmado: aceptar). Cambiar la contraseña desde Settings �
 
 ## Paso 7 — Verificación funcional y de carga
 - UI: ambas cámaras con imagen en vivo; latencia observada ≤2 s.
-- Grabación: aparecen segmentos en `/srv/frigate/media/frigate/recordings/`.
+- Grabación: aparecen segmentos en `/srv/fenrir/media/recordings/`.
 - Detección: caminar frente a una cámara → evento en la pestaña Review.
 - MQTT: `docker exec -it mosquitto mosquitto_sub -u nodered -P 'CLAVE' -t 'frigate/#' -v`
   → debe fluir `frigate/available` y eventos.
@@ -207,25 +207,25 @@ log (certificado autofirmado: aceptar). Cambiar la contraseña desde Settings �
   contenedor (`cpuset: "0,1"`) — decisión HITL de Gate 1.
 - Audio (SR06 / FL §934.03): tomar un segmento recién grabado y comprobar que **no**
   tiene pista de audio. **Dos trampas, las dos comprobadas el 2026-09-09**: `ffprobe` no
-  está en el `PATH` del contenedor, y la media del host cuelga de `/srv/frigate/media/`
+  está en el `PATH` del contenedor, y la media del host cuelga de `/srv/fenrir/media/`
   (el `frigate/` interno lo pone el propio montaje). Con la ruta mal o el binario ausente,
   el comando aborta, `grep -c` devuelve `0` y **el test pasa sin haber mirado nada**: por eso
   aquí se comprueba primero que hay segmento.
   ```bash
   FFPROBE=/usr/lib/ffmpeg/7.0/bin/ffprobe   # ojo: no está en el PATH
-  seg=$(docker exec frigate sh -c 'find /media/frigate/recordings -name "*.mp4" \
+  seg=$(docker exec fenrir-frigate sh -c 'find /media/frigate/recordings -name "*.mp4" \
         -newermt "-30 minutes" | head -1')
   [ -n "$seg" ] || { echo "SIN SEGMENTOS RECIENTES: el test no prueba nada"; exit 1; }
-  docker exec frigate $FFPROBE -v error -show_streams -select_streams a "$seg" \
+  docker exec fenrir-frigate $FFPROBE -v error -show_streams -select_streams a "$seg" \
     | grep -c codec_type
   ```
   Debe devolver `0`. (El default de Frigate es `preset-record-generic-audio-aac`; el
   config del proyecto lo fuerza a `preset-record-generic`.) Resultado del 2026-09-09:
   `0` en ambas cámaras, esta vez de verdad.
-- Disco: `df -h /srv/frigate` y anotar crecimiento a las 24 h; alerta si >85 % (T1).
+- Disco: `df -h /srv/fenrir` y anotar crecimiento a las 24 h; alerta si >85 % (T1).
   Medido el 2026-09-09 con las dos cámaras en continuo: **~14 GB/día**
   (4,2 GB en 7 h 09 min), un tercio de lo que estimaba ADR-0004.
-- Logs: `docker inspect frigate --format '{{.HostConfig.LogConfig}}'` debe mostrar
+- Logs: `docker inspect fenrir-frigate --format '{{.HostConfig.LogConfig}}'` debe mostrar
   `max-size:10m` (T1: json-file sin rotación llena el disco del router).
 
 ## Paso 8 — Endurecimiento de red (traza T4/T5)
@@ -261,12 +261,12 @@ sudo useradd -r -m -s /bin/bash nvrbackup
 sudo install -d -m 700 -o nvrbackup -g nvrbackup /home/nvrbackup/.ssh
 # Pegar la clave publica del NAS restringida a rsync de solo lectura.
 # En authorized_keys va TODO EN UNA SOLA LINEA; aqui se parte solo para leerla:
-#   command="rrsync -ro /srv/frigate",no-agent-forwarding,no-port-forwarding,
+#   command="rrsync -ro /srv/fenrir",no-agent-forwarding,no-port-forwarding,
 #   no-pty,no-X11-forwarding ssh-ed25519 AAAA...
 sudo -u nvrbackup nano /home/nvrbackup/.ssh/authorized_keys
 sudo chmod 600 /home/nvrbackup/.ssh/authorized_keys
 # Lectura de la media sin poder escribir ni borrar:
-sudo setfacl -R -m u:nvrbackup:rX /srv/frigate/config /srv/frigate/media/frigate/clips
+sudo setfacl -R -m u:nvrbackup:rX /srv/fenrir/config /srv/fenrir/media/clips
 ```
 
 En el NAS, tarea programada diaria que tire de `config/`, `clips/` y los exportados. **No
@@ -279,7 +279,7 @@ reproducirlo. Un respaldo que nunca se ha restaurado no es un respaldo.
 
 ```mermaid
 flowchart LR
-    A[Editar config.yml o compose] --> B[Backup /srv/frigate/config]
+    A[Editar config.yml o compose] --> B[Backup /srv/fenrir/config]
     B --> C[Revisar release notes si cambia el tag]
     C --> D[docker compose up -d]
     D --> E{UI y camaras OK?}
@@ -306,6 +306,59 @@ gantt
     Endurecimiento nftables     :crit, a5, after a4, 1d
     Observacion 72h carga/disco :a6, after a5, 3d
 ```
+
+## Anexo — Migración de nombres a Fenrir (una sola vez)
+
+El despliegue que ya estaba corriendo se llamaba `nvr`/`frigate` y vivía en `/opt/nvr` y
+`/srv/frigate`. Este anexo lo lleva a los nombres nuevos. **No forma parte del runbook**:
+una instalación desde cero ya nace con ellos.
+
+**Lo primero, porque decide el orden de todo lo demás:** el nombre del proyecto compose
+cambia. Un `docker compose down` con el compose *nuevo* no encuentra el stack viejo y lo
+deja huérfano, con el contenedor `frigate` retenido y el puerto 8971 ocupado. Hay que
+pararlo **con el compose viejo, antes de mover nada**.
+
+```bash
+# 1. Parar el stack viejo, desde su propio directorio y su propio compose
+cd /opt/nvr && docker compose down
+
+# 2. Mover datos y raiz de despliegue
+sudo mv /srv/frigate /srv/fenrir
+sudo mv /opt/nvr     /opt/fenrir
+
+# 3. Traer los artefactos renombrados
+cd /opt/fenrir/repo && git pull
+cp deploy/docker-compose.yml /opt/fenrir/
+cp deploy/frigate/config.yml /srv/fenrir/config/
+
+# 4. Levantar con los nombres nuevos
+cd /opt/fenrir && docker compose up -d
+docker ps --filter name=fenrir-frigate
+```
+
+**Por qué mover la media no rompe la base.** `recordings.path` guarda la ruta *interna del
+contenedor* — `/media/frigate/recordings/...` en las 5.298 filas del 2026-09-09, sin una
+sola excepción — y el destino del montaje no cambia: sigue siendo `/media/frigate`. Lo que
+se mueve es el origen en el host. Comprobarlo antes de mover, no después:
+
+```bash
+docker exec fenrir-frigate python3 -c "import sqlite3;   print(sqlite3.connect('/config/frigate.db').execute(   'select distinct substr(path,1,25), count(*) from recordings group by 1').fetchall())"
+```
+
+Si aparece algún prefijo que empiece por `/srv/`, **parar**: esa fila sí guarda ruta de
+host y habría que reescribirla antes de mover nada.
+
+**Verificación del salto** (todo esto debería seguir igual que antes):
+
+```bash
+docker logs fenrir-frigate 2>&1 | grep -iE "safe mode|Config Validation Errors" | head  # vacio
+docker exec fenrir-frigate du -sh /media/frigate/recordings   # el mismo tamano de antes
+```
+
+**Costura que queda con el nombre viejo, a propósito**: el usuario y los tópicos MQTT
+siguen siendo `frigate` y `frigate/#`. Viven en el broker de `yggdrasil`, con su ACL, y los
+consume Node-RED: renombrarlos es un cambio de la plataforma con clientes que romper, no
+parte de esta migración.
 
 ## Registro
 Cada ejecución de este runbook se anota en `CHANGELOG.md` (`[Unreleased]` → versión al

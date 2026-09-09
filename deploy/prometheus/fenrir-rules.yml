@@ -3,14 +3,14 @@
 # Cada alerta lleva `for:` deliberadamente: confirmar antes de avisar es lo que impide que
 # un pico durante un `apt upgrade` enseñe a ignorar las alertas.
 groups:
-  - name: frigate
+  - name: fenrir
     rules:
 
       # --- Disponibilidad -------------------------------------------------------------
-      - alert: FrigateCaido
-        expr: up{job="frigate"} == 0
+      - alert: FenrirCaido
+        expr: up{job="fenrir"} == 0
         for: 2m
-        labels: { severity: critical, servicio: nvr }
+        labels: { severity: critical, servicio: fenrir }
         annotations:
           summary: "El NVR no responde al scrape"
           runbook: "docs/06-monitoring/observability.md — I-4"
@@ -18,7 +18,7 @@ groups:
       - alert: CamaraCaida
         expr: frigate_camera_fps == 0
         for: 5m
-        labels: { severity: critical, servicio: nvr }
+        labels: { severity: critical, servicio: fenrir }
         annotations:
           summary: "Cámara {{ $labels.camera_name }} sin frames desde hace 5 min"
           descripcion: >-
@@ -32,7 +32,7 @@ groups:
       - alert: DiscoNvrAlto
         expr: frigate_storage_used_bytes / frigate_storage_total_bytes > 0.85
         for: 15m
-        labels: { severity: warning, servicio: nvr }
+        labels: { severity: warning, servicio: fenrir }
         annotations:
           summary: "Almacenamiento del NVR al {{ $value | humanizePercentage }}"
           descripcion: >-
@@ -44,7 +44,7 @@ groups:
       - alert: DiscoNvrCritico
         expr: frigate_storage_used_bytes / frigate_storage_total_bytes > 0.92
         for: 5m
-        labels: { severity: critical, servicio: nvr }
+        labels: { severity: critical, servicio: fenrir }
         annotations:
           summary: "Almacenamiento del NVR al {{ $value | humanizePercentage }} — riesgo para el host"
           runbook: "docs/06-monitoring/observability.md — I-2"
@@ -53,7 +53,7 @@ groups:
       - alert: DetectorSaturado
         expr: frigate_skipped_fps > 0
         for: 3m
-        labels: { severity: warning, servicio: nvr }
+        labels: { severity: warning, servicio: fenrir }
         annotations:
           summary: "El detector descarta frames en {{ $labels.camera_name }}"
           descripcion: >-
@@ -62,12 +62,12 @@ groups:
           runbook: "docs/06-monitoring/observability.md — I-3"
 
       # --- RNF03: memoria del propio Frigate -------------------------------------------
-      - alert: FrigateMemoriaAlta
+      - alert: FenrirMemoriaAlta
         expr: frigate_mem_usage_percent > 80
         for: 15m
-        labels: { severity: warning, servicio: nvr }
+        labels: { severity: warning, servicio: fenrir }
         annotations:
-          summary: "Frigate al {{ $value }} % de memoria"
+          summary: "Fenrir al {{ $value }} % de memoria"
           descripcion: >-
             Si el tmpfs está lleno el problema real es el disco, no la memoria: la caché no
             drena al HDD y crece (acoplamiento T1→T7). Comprobarlo antes de tocar mem_limit.

@@ -29,8 +29,8 @@ C4Container
     System_Boundary(host, "Appliance i3-3240 (Ubuntu 24.04, tambien router)") {
         Container(frigate, "Frigate 0.17.2", "Docker, Python/ffmpeg, VAAPI i965", "NVR: go2rtc + detector CPU + grabador", $tags="owasp-a01")
         Container(mosquitto, "Mosquitto 2", "Docker, MQTT", "Broker de eventos con auth por password")
-        ContainerDb(media, "Media store", "HDD SATA /srv/frigate/media", "Segmentos, clips y snapshots (Confidencial)")
-        ContainerDb(cfgdb, "Config + SQLite", "/srv/frigate/config", "config.yml, frigate.db, credenciales UI")
+        ContainerDb(media, "Media store", "HDD SATA /srv/fenrir/media", "Segmentos, clips y snapshots (Confidencial)")
+        ContainerDb(cfgdb, "Config + SQLite", "/srv/fenrir/config", "config.yml, frigate.db, credenciales UI")
     }
 
     Rel(cam1, frigate, "Envia stream1 y stream2 a", "RTSP en claro")

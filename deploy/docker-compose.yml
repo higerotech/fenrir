@@ -1,5 +1,5 @@
-# NVR Doméstico Frigate — ADR-0003: imagen pineada, secretos en .env, puertos mínimos
-name: nvr
+# Fenrir — NVR doméstico sobre Frigate. ADR-0003: imagen pineada, secretos en .env, puertos mínimos
+name: fenrir
 
 # T5 — Docker publica vía DNAT en PREROUTING y NO atraviesa la cadena `input` de nftables:
 # un default-drop en input NO protege un puerto publicado. Por eso el bind es explícito a
@@ -13,9 +13,9 @@ x-logging: &logging
       max-file: "3"
 
 services:
-  frigate:
+  fenrir:
     image: ghcr.io/blakeblackshear/frigate:0.17.2   # NO usar stable/latest (ADR-0003)
-    container_name: frigate
+    container_name: fenrir-frigate
     restart: unless-stopped
     stop_grace_period: 30s
     # RNF03 — el limite debe cubrir tmpfs (954 MiB) + shm (128 MiB) + procesos: en cgroup v2
@@ -33,8 +33,8 @@ services:
       - "${RENDER_GID}"
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      - /srv/frigate/config:/config
-      - /srv/frigate/media:/media/frigate
+      - /srv/fenrir/config:/config
+      - /srv/fenrir/media:/media/frigate
       - type: tmpfs                  # caché de segmentos en RAM, protege el HDD
         target: /tmp/cache
         tmpfs:
@@ -65,7 +65,7 @@ services:
 # ADR-0008: el NVR no trae broker propio. Se une a la red del stack ya desplegado en el
 # host, donde viven el broker MQTT, Node-RED, Prometheus y Alertmanager. Consecuencias:
 #   - No hay colisión en 1883: ese puerto ya lo sirve el broker existente.
-#   - Ni 1883 ni 5000 se publican en ningún sitio. Prometheus raspa `frigate:5000` por la
+#   - Ni 1883 ni 5000 se publican en ningún sitio. Prometheus raspa `fenrir:5000` por la
 #     red interna, así que T6 queda intacto en vez de mitigado a medias.
 networks:
   iot:

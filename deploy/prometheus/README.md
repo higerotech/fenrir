@@ -9,8 +9,8 @@ trazados a los requisitos que los justifican.
 
 | Fichero | Qué es | Dónde se instala |
 |---|---|---|
-| `frigate-job.yml` | Scrape de `frigate:5000` por la red Docker compartida | Bloque `scrape_configs` del `prometheus.yml` |
-| `frigate-rules.yml` | 6 alertas del NVR | Directorio de reglas que Prometheus carga |
+| `fenrir-job.yml` | Scrape de `fenrir:5000` por la red Docker compartida | Bloque `scrape_configs` del `prometheus.yml` |
+| `fenrir-rules.yml` | 6 alertas del NVR | Directorio de reglas que Prometheus carga |
 | `node-exporter.compose.yml` | Servicio `node_exporter` | Compose de la plataforma |
 | `node-exporter-job.yml` | Scrape de `host.docker.internal:9100` | Bloque `scrape_configs` |
 | `host-rules.yml` | 7 alertas de host | Directorio de reglas |
@@ -43,7 +43,7 @@ docker exec <prometheus> promtool check config /etc/prometheus/prometheus.yml
 docker exec <prometheus> kill -HUP 1
 ```
 
-Comprobar en la UI de Prometheus que los targets `frigate` y `jord` aparecen *up*, y que
+Comprobar en la UI de Prometheus que los targets `fenrir` y `jord` aparecen *up*, y que
 `node_memory_MemAvailable_bytes` y `frigate_camera_fps` devuelven datos.
 
 ## Dos decisiones de montaje que conviene entender
@@ -83,6 +83,7 @@ No es duplicación por descuido:
 
 Los jobs del host siguen nomenclatura nórdica (`mimir`, `gjallarhorn`, `huginn_muninn`,
 `sleipnir`). Propuesta para node_exporter: **`jord`** —Jörð, la tierra sobre la que todo se
-sostiene—, que encaja con las constantes vitales del propio host. Para el NVR se ha dejado
-`frigate`, plano, por claridad. Renombrar cualquiera de los dos exige ajustar las reglas que
-los referencian.
+sostiene—, que encaja con las constantes vitales del propio host. El NVR es **`fenrir`**,
+el lobo encadenado: vigila, y el diseño entero consiste en tenerlo atado — sin salida a
+internet, sin audio, con la API sin autenticar fuera de toda interfaz. Renombrar cualquiera
+de los dos exige ajustar las reglas que los referencian.

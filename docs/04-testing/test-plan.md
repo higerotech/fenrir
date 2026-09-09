@@ -151,13 +151,13 @@ la última columna. Un caso sin evidencia **no cuenta como aprobado**.
 |---|---|---|---|---|
 | T-01 | RF01 | `ffprobe` a `stream1` y `stream2` de ambas IPs | h264 1920×1080 y 640×360, sin error de auth | |
 | T-02 | RF01 | UI: ambas cámaras muestran imagen | 2/2 con imagen viva, sin reconexiones en el log | |
-| T-03 | RF02 | `find /srv/frigate/media/frigate/recordings -newermt '-10 min'` | Aparecen segmentos nuevos de ambas cámaras | |
+| T-03 | RF02 | `find /srv/fenrir/media/recordings -newermt '-10 min'` | Aparecen segmentos nuevos de ambas cámaras | |
 | T-04 | RF03 | Caminar frente a cada cámara | Review item con etiqueta `person` en ambas | |
 | T-05 | RF03 | Pasar un coche por el encuadre que lo permita | Etiqueta `car`, clasificado como alerta y no como detección | |
 | T-06 | RF04 | Cronometrar reloj real contra la imagen en pantalla, en LAN | ≤2 s | |
 | T-07 | RF04 | Repetir T-06 por WireGuard desde datos móviles | ≤2 s y el modo negociado es WebRTC, no MSE | |
 | T-08 | RF05 | `mosquitto_sub -u nodered -t 'frigate/#' -v` mientras se dispara T-04 | Llega `frigate/events` con el objeto, retraso <3 s | |
-| T-09 | RF05 | Detener el contenedor frigate con el `sub` abierto | `frigate/available` pasa a `offline` por LWT | |
+| T-09 | RF05 | Detener el contenedor `fenrir-frigate` con el `sub` abierto | `frigate/available` pasa a `offline` por LWT | |
 | T-10 | RNF02 | `sudo intel_gpu_top` durante la grabación | Video engine >0 %: decodifica la iGPU, no la CPU | |
 | T-11 | RNF01 | 15 min con detección activa. Consultar en Prometheus la CPU **del host** y la de Frigate | CPU sostenida <50 %. Las dos series permiten **atribuir**: si el host sube y Frigate no, el NVR no es la causa | |
 | T-12 | RNF01 | Métrica `frigate_skipped_fps` durante T-11 | **0**. Si es >0 el detector no da abasto: canario de T2 | |
@@ -166,10 +166,10 @@ la última columna. Un caso sin evidencia **no cuenta como aprobado**.
 | T-15 | RF02 | Al día 15: revisar alertas y snapshots antiguos | Nada anterior a 14 días | |
 | T-16 | — | Exportar un clip desde la UI | El archivo exportado existe y se reproduce | |
 | T-17 | RNF03 | Durante los 15 min de T-11: `frigate_mem_usage_percent` y `node_memory_MemAvailable_bytes` en Prometheus | Frigate <80 % de sus 3 GB; `MemAvailable` ≥4 GB; swap en 0. Con historial, no una foto | |
-| T-18 | RNF03 | Tras T-16 (exportar un clip largo): `docker exec frigate df -h /tmp/cache` | El `tmpfs` se drena tras el export y no queda ocupado | |
+| T-18 | RNF03 | Tras T-16 (exportar un clip largo): `docker exec fenrir-frigate df -h /tmp/cache` | El `tmpfs` se drena tras el export y no queda ocupado | |
 | T-23 | ADR-0008 | Tras dar de alta al usuario `frigate`, comprobar que **los clientes MQTT que ya existían siguen conectando** | Ninguno pierde acceso. `mosquitto_passwd -c` habría borrado el fichero entero, y este caso es el que lo detecta |
-| T-24 | ADR-0008 | `docker exec frigate ffmpeg -hwaccel vaapi -hwaccel_device /dev/dri/renderD128 -i ... -f null -` y `intel_gpu_top` durante la grabación | Sin *permission denied*. Sin `group_add`, VAAPI falla y Frigate cae a CPU sin decirlo claramente |
-| T-25 | ADR-0008 | En Prometheus: `up{job="frigate"}` y una consulta a `frigate_camera_fps` | El target aparece *up* y las métricas llegan, **sin haber publicado el 5000** |
+| T-24 | ADR-0008 | `docker exec fenrir-frigate ffmpeg -hwaccel vaapi -hwaccel_device /dev/dri/renderD128 -i ... -f null -` y `intel_gpu_top` durante la grabación | Sin *permission denied*. Sin `group_add`, VAAPI falla y Frigate cae a CPU sin decirlo claramente |
+| T-25 | ADR-0008 | En Prometheus: `up{job="fenrir"}` y una consulta a `frigate_camera_fps` | El target aparece *up* y las métricas llegan, **sin haber publicado el 5000** |
 | T-26 | ADR-0008 | `up{job="jord"}` y `node_memory_MemAvailable_bytes` | node_exporter responde y las métricas de host llegan |
 | T-27 | T1 | Comparar `frigate_storage_used_bytes/total` con `node_filesystem_avail_bytes{mountpoint="/"}` | **Deben coincidir**: no hay volumen dedicado, así que miran el mismo sistema de ficheros. Si discrepan, algo está montado distinto de lo que la documentación asume |
 | T-19 | ADR-0006 | Lanzar la tarea del NAS; luego **restaurar** un archivo cualquiera desde el NAS y reproducirlo | El respaldo completa, y el archivo restaurado se reproduce. Un respaldo nunca restaurado no es un respaldo | |
@@ -187,11 +187,11 @@ la última columna. Un caso sin evidencia **no cuenta como aprobado**.
 | S-04 | A2 / T5 | Desde datos móviles: `nmap -Pn <IP-WAN> -p 8971,8554,8555,1883` | Los cuatro `filtered`, repitiendo por cada WAN |
 | S-11 | ADR-0007 | Desde un equipo del segmento de las cámaras, intentar alcanzar la LAN del appliance y la UI del NVR | Todo rechazado por el `default drop` de entrada WAN. Confirma que el NVR sigue siendo solo cliente saliente y que SR02 se mantiene |
 | S-05 | A3 | Desde una cámara, o simulando su IP, intentar salir a internet | Bloqueado por la regla de egress |
-| S-06 | A4 / T1→T7 | Rellenar `/srv/frigate` hasta el 92 % con `fallocate` y esperar. Vigilar a la vez `docker exec frigate df -h /tmp/cache` y `free -h` | Salta la alerta de watermark; el router no se degrada; **y el `tmpfs` no arrastra la memoria del host**: si Frigate muere, lo hace por su `mem_limit` y no se lleva a `dnsmasq`. **Borrar el archivo al terminar** |
+| S-06 | A4 / T1→T7 | Rellenar `/srv/fenrir` hasta el 92 % con `fallocate` y esperar. Vigilar a la vez `docker exec fenrir-frigate df -h /tmp/cache` y `free -h` | Salta la alerta de watermark; el router no se degrada; **y el `tmpfs` no arrastra la memoria del host**: si Frigate muere, lo hace por su `mem_limit` y no se lleva a `dnsmasq`. **Borrar el archivo al terminar** |
 | S-07 | A5 | `mosquitto_sub -t '#'` sin credenciales contra el broker existente | Rechazado por `allow_anonymous false` |
 | S-12 | ADR-0008 | Con las credenciales de `frigate`, intentar publicar y suscribirse **fuera** de `frigate/#` | Rechazado por el `acl_file`: el usuario del NVR no ve el resto del tráfico del hogar |
 | S-08 | SR05 | `docker image inspect` del digest desplegado contra el registrado en la fase 03 | Coinciden |
-| S-10 | T8 | Desde la cuenta `nvrbackup` por SSH: intentar escribir, borrar o salir del árbol `/srv/frigate` | Todo rechazado: la clave está restringida por `command=` a rsync de solo lectura |
+| S-10 | T8 | Desde la cuenta `nvrbackup` por SSH: intentar escribir, borrar o salir del árbol `/srv/fenrir` | Todo rechazado: la clave está restringida por `command=` a rsync de solo lectura |
 | S-09 | A1 | Diez intentos de login fallidos seguidos | Quedan registrados y son revisables en el log (A09) |
 
 Cobertura OWASP: A01 (S-01, S-02), A02 (S-03, S-04, S-07), A03 (S-08), A07 (S-01, S-09).

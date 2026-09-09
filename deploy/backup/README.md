@@ -36,13 +36,13 @@ sudo useradd -r -m -s /bin/bash nvrbackup
 sudo install -d -m 700 -o nvrbackup -g nvrbackup /home/nvrbackup/.ssh
 sudo -u nvrbackup nano /home/nvrbackup/.ssh/authorized_keys
 sudo chmod 600 /home/nvrbackup/.ssh/authorized_keys
-sudo setfacl -R -m u:nvrbackup:rX /srv/frigate/config /srv/frigate/media/frigate
+sudo setfacl -R -m u:nvrbackup:rX /srv/fenrir/config /srv/fenrir/media
 ```
 
 La línea de `authorized_keys`, en una sola línea y con la clave **pública** del NAS:
 
 ```
-command="rrsync -ro /srv/frigate",no-agent-forwarding,no-port-forwarding,no-pty,no-X11-forwarding ssh-ed25519 AAAA...
+command="rrsync -ro /srv/fenrir",no-agent-forwarding,no-port-forwarding,no-pty,no-X11-forwarding ssh-ed25519 AAAA...
 ```
 
 `rrsync` viene con `rsync` (suele estar en `/usr/share/doc/rsync/scripts/rrsync`; en Ubuntu
@@ -53,19 +53,19 @@ S-10 lo comprueba intentándolo.
 ## Instalación — NAS
 
 ```bash
-sudo install -m 755 pull-from-appliance.sh /usr/local/bin/nvr-backup.sh
-sudo tee /etc/nvr-backup.env >/dev/null <<'EOF'
+sudo install -m 755 pull-from-appliance.sh /usr/local/bin/fenrir-backup.sh
+sudo tee /etc/fenrir-backup.env >/dev/null <<'EOF'
 NVR_HOST=<ip-del-appliance>
 NVR_USER=nvrbackup
 NVR_KEY=/root/.ssh/id_ed25519_nvrbackup
-NVR_DEST=/volumen/backups/nvr
+NVR_DEST=/volumen/backups/fenrir
 EOF
-sudo chmod 600 /etc/nvr-backup.env
+sudo chmod 600 /etc/fenrir-backup.env
 sudo crontab -e
-#   0 4 * * *  /usr/local/bin/nvr-backup.sh >> /var/log/nvr-backup.log 2>&1
+#   0 4 * * *  /usr/local/bin/fenrir-backup.sh >> /var/log/fenrir-backup.log 2>&1
 ```
 
-Ninguna IP ni nombre real vive en el repositorio: van a `/etc/nvr-backup.env` con permisos
+Ninguna IP ni nombre real vive en el repositorio: van a `/etc/fenrir-backup.env` con permisos
 600, igual que las credenciales del NVR van al `.env`. Es la misma convención del README raíz.
 
 ## Retención en el NAS
@@ -76,8 +76,8 @@ NAS necesita su propia política. Con la retención de 14 días de alertas en el
 estilo:
 
 ```bash
-find /volumen/backups/nvr/clips -type f -mtime +180 -delete
-find /volumen/backups/nvr/clips -type d -empty -delete
+find /volumen/backups/fenrir/clips -type f -mtime +180 -delete
+find /volumen/backups/fenrir/clips -type d -empty -delete
 ```
 
 Esa decisión es del NAS, no del NVR, y conviene tomarla a conciencia: la clasificación de
