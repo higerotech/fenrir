@@ -19,9 +19,11 @@ trazados a los requisitos que los justifican.
 
 `resumen` y `descripcion`, no `summary`. Las alertas llegan a Alertmanager y de ahi al flujo
 de Nornas (Node-RED), cuyo nodo *Alertmanager -> estados MQTT* hace, para toda alerta que no
-lleve etiqueta `wan` -que son todas las nuestras-:
+lleve etiqueta `wan` —que son todas las nuestras—:
 
-Heimdall: 
+```js
+if (firing) aviso(`Heimdall: ${nombre}`, an.resumen || "");
+```
 
 Con `summary` la notificacion llega con el cuerpo **vacio**. No falla, no avisa de nada: el
 peor modo. Verificado leyendo el flujo el 2026-09-09, antes de instalar el job.
