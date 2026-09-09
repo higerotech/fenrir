@@ -46,10 +46,15 @@ services:
       - "${FRIGATE_LAN_IP}:8555:8555/udp"
       # Puerto 5000 (API sin auth) deliberadamente NO publicado (T6). Prometheus lo alcanza
       # por la red `iot`, que es justo el motivo de no tener que publicarlo.
+    # Toda variable {FRIGATE_*} que use config.yml TIENE que aparecer aqui: Frigate solo
+    # sustituye las que ve en su entorno, y si falta una aborta con KeyError al arrancar.
+    #   comprobar: grep -oE '\{FRIGATE_[A-Z0-9_]+\}' frigate/config.yml | sort -u
     environment:
       LIBVA_DRIVER_NAME: i965        # driver correcto para Ivy Bridge (2.ª-6.ª gen)
       FRIGATE_RTSP_USER: ${FRIGATE_RTSP_USER}
       FRIGATE_RTSP_PASSWORD: ${FRIGATE_RTSP_PASSWORD}
+      FRIGATE_MQTT_HOST: ${FRIGATE_MQTT_HOST}    # broker existente del host (ADR-0008)
+      FRIGATE_MQTT_USER: ${FRIGATE_MQTT_USER}
       FRIGATE_MQTT_PASSWORD: ${FRIGATE_MQTT_PASSWORD}
       FRIGATE_LAN_IP: ${FRIGATE_LAN_IP}      # usado por go2rtc.webrtc.candidates (RF04)
       FRIGATE_CAM1_IP: ${FRIGATE_CAM1_IP}    # las IPs reales viven solo en .env (repo publico)
