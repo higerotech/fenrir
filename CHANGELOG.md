@@ -43,6 +43,46 @@ Y un cuarto que no es de Frigate sino del propio runbook:
   primeras pasan a continuación de línea real; la de `authorized_keys` se parte sin barra,
   con el aviso de que ahí va todo en una sola línea.
 
+- **El test de audio del runbook pasaba en falso.** `ffprobe` no está en el `PATH` del
+  contenedor —vive en `/usr/lib/ffmpeg/7.0/bin/`— y la ruta del `find` sobraba un nivel:
+  la media del host cuelga de `/srv/frigate/media/`, y el `frigate/` interno lo pone el
+  montaje. Con cualquiera de las dos cosas mal, el comando aborta, `grep -c codec_type`
+  devuelve `0` y **eso es exactamente lo que el runbook lee como «sin audio»**. Un control
+  de cumplimiento (SR06 / FL §934.03) que se aprueba solo no es un control. Corregidos el
+  binario y la ruta, y el test comprueba primero que existe un segmento reciente antes de
+  medir nada. **Ejecutado bien da `0` en ambas cámaras**: el requisito se cumple de verdad.
+
+### Añadido
+
+- **Comprobación de SAFE MODE en el Paso 6 del runbook.** Con un config inválido, Frigate
+  no se para: arranca en modo seguro, graba, detecta y publica en MQTT, y `docker ps` lo da
+  por `healthy` — pero desactiva el mantenimiento de almacenamiento y la limpieza de
+  grabaciones y eventos. La retención de ADR-0004, que es **el** control de T1, deja de
+  aplicarse sin que nada lo diga. Se añade el `grep` que lo detecta y el corolario que
+  costó siete horas el 2026-09-09: **arreglar el fichero no basta**, porque el config se lee
+  al arrancar; un contenedor levantado a las 05:29 con el fichero corregido a las 05:34
+  sigue en modo seguro indefinidamente.
+
+### Medido en el arranque real (2026-09-09)
+
+Primeras cifras del sistema corriendo. Ninguna cierra Gate 3 — se tomaron con Frigate en
+safe mode, o sea sin las tareas de mantenimiento — pero dos contradicen al diseño:
+
+- **CPU al 216 % de 4 hilos = 54 % sostenido, por encima del `<50 %` de RNF01.** El muestreo
+  de 15 min (`muestreo.csv`, 05:40–05:56) da 145–207 %, o sea 36–52 %: ya entonces rozaba
+  el techo. Es la entrada de la condición de revocación de ADR-0002 y hay que repetirla
+  fuera de safe mode antes de decidir nada.
+- **El crecimiento real es ~14 GB/día** (4,2 GB en 7 h 09 min, dos cámaras en continuo),
+  frente a los ~216 GB por 5 días que estimaba ADR-0004: **un tercio**. La holgura para
+  subir la retención es mucho mayor de lo que decía el ADR, pero el argumento para no
+  hacerlo nunca fue el espacio, así que el dato no cambia la decisión por sí solo.
+- **Los segmentos son 2304x1296, no 1920x1080.** El Paso 1 del runbook daba por hecha una
+  resolución que estas C310 no entregan.
+- Sin pista de audio en ninguna cámara (SR06 / §934.03), MQTT conectado y publicando, y
+  VAAPI autodetectado. **Pendiente**: confirmar que la decodificación cae de verdad en la
+  iGPU — `intel_gpu_top` falla dentro del contenedor con *Failed to initialize PMU
+  (Operation not permitted)*, así que T-24 sigue sin evidencia directa.
+
 ### Cambiado
 
 - **El corte de versión va directo a `main`, sin ronda de revisión** (`config-baseline.md`,
