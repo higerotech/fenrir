@@ -18,4 +18,4 @@
 - [ ] Respaldo al NAS verificado con restauración real (T-19) y aislamiento probado (T-20/S-10)
 - [ ] **HITL**: Jeremi acepta el resultado de la medición de carga (entrada de ADR-0002)
 
-Al aprobar: cortar el siguiente MINOR (previsto `0.5.0`).
+Al aprobar: cortar el siguiente MINOR (previsto `0.6.0`).

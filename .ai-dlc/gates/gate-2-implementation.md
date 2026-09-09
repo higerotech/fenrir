@@ -18,8 +18,9 @@
 - [ ] Secretos (A02): escaneo del repo (`gitleaks detect`) limpio; `.env` y `passwd` ignorados
 - [ ] **HITL**: Jeremi acepta los CVEs residuales de las imágenes base
 
-Al aprobar: cortar el siguiente MINOR (previsto `0.4.0`).
+Al aprobar: cortar el siguiente MINOR (previsto `0.5.0`).
 
-> El número no se fija de antemano: `0.3.0` se consumió el 2026-09-08 con el presupuesto de
-> memoria, un cambio entre gates. Reservar un número fijo asumía que entre gates no se
-> publica nada, y eso resultó falso.
+> El número no se fija de antemano. `0.3.0` se consumió el 2026-09-08 con el presupuesto de
+> memoria y `0.4.0` el 2026-09-09 con la integración en la plataforma del host: dos cambios
+> entre gates. Reservar un número fijo asumía que entre gates no se publica nada, y ya van
+> dos veces que resulta falso.
