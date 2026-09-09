@@ -10,10 +10,24 @@ trazados a los requisitos que los justifican.
 | Fichero | Qué es | Dónde se instala |
 |---|---|---|
 | `fenrir-job.yml` | Scrape de `fenrir:5000` por la red Docker compartida | Bloque `scrape_configs` del `prometheus.yml` |
-| `fenrir-rules.yml` | 6 alertas del NVR | Directorio de reglas que Prometheus carga |
+| `fenrir-rules.yml` | 6 alertas del NVR | Directorio de reglas, como `rules/fenrir-alertas.yml` |
 | `node-exporter.compose.yml` | Servicio `node_exporter` | Compose de la plataforma |
 | `node-exporter-job.yml` | Scrape de `host.docker.internal:9100` | Bloque `scrape_configs` |
 | `host-rules.yml` | 7 alertas de host | Directorio de reglas |
+
+## Las anotaciones van en castellano por una razon
+
+`resumen` y `descripcion`, no `summary`. Las alertas llegan a Alertmanager y de ahi al flujo
+de Nornas (Node-RED), cuyo nodo *Alertmanager -> estados MQTT* hace, para toda alerta que no
+lleve etiqueta `wan` -que son todas las nuestras-:
+
+Heimdall: 
+
+Con `summary` la notificacion llega con el cuerpo **vacio**. No falla, no avisa de nada: el
+peor modo. Verificado leyendo el flujo el 2026-09-09, antes de instalar el job.
+
+Arista conocida: el titulo del aviso dira `Heimdall: FenrirCaido`, porque el prefijo esta fijo
+en esa funcion. Cambiarlo es tocar el flujo de la plataforma, no estas reglas.
 
 ## Por qué hace falta node_exporter
 
