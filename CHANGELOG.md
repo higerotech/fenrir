@@ -11,6 +11,51 @@ eso los gates reservan *el siguiente* MINOR y no un número fijo — ver `.ai-dl
 
 ## [Unreleased]
 
+### Corregido
+
+Los tres primeros errores del arranque real, en el orden en que Frigate 0.17.2 los fue
+sacando. Ninguno se ve en `docker compose config` ni validando el YAML: los tres necesitan
+el contenedor levantado contra el host.
+
+- **`FRIGATE_MQTT_HOST` y `FRIGATE_MQTT_USER` no llegaban al contenedor.** `config.yml` las
+  interpola, pero solo estaban en el `.env`; Frigate sustituye únicamente las variables que
+  ve en **su** entorno, así que abortaba con `KeyError` antes de arrancar. Se añaden al
+  bloque `environment:` del compose, con la comprobación que lo detecta sin desplegar:
+  `grep -oE '\{FRIGATE_[A-Z0-9_]+\}' frigate/config.yml | sort -u` — toda variable que salga
+  ahí tiene que estar en el compose.
+- **`record.retain` ya no existe en 0.17; el continuo es `record.continuous.days`.** El fallo
+  no es ruidoso: Frigate no rechaza el arranque, entra en **SAFE MODE** e **ignora la
+  configuración entera** — cámaras, detección, retención y endurecimiento incluidos. Es el
+  peor modo de fallo de los tres, porque el contenedor queda «arriba». Verificado contra el
+  modelo del propio contenedor, no contra la documentación:
+  `docker exec frigate python3 -c "from frigate.config.config import RecordConfig; print(RecordConfig.model_json_schema()['properties'].keys())"`.
+- **`detect.enabled` viene en `False` por defecto en 0.17** y hay que activarlo por cámara.
+  Sin esto el sistema graba pero no detecta: RF03 no se cumple y el silencio es idéntico al
+  de una escena sin movimiento.
+
+Y un cuarto que no es de Frigate sino del propio runbook:
+
+- **Cuatro comandos del runbook llevaban un `\n` literal en medio**, restos de una edición
+  anterior: las dos verificaciones RTSP de las cámaras (Paso 1), la comprobación de que el
+  segmento grabado no tiene pista de audio (Paso 7, SR06 / FL §934.03) y la línea de
+  `authorized_keys` del respaldo (Paso 8bis). Copiadas y pegadas fallaban. En un documento cuyo
+  único modo de uso es copiar y pegar durante el arranque, eso no es cosmético. Las tres
+  primeras pasan a continuación de línea real; la de `authorized_keys` se parte sin barra,
+  con el aviso de que ahí va todo en una sola línea.
+
+### Cambiado
+
+- **El corte de versión va directo a `main`, sin ronda de revisión** (`config-baseline.md`,
+  «Cómo se corta una versión»). El corte es mecánico —mover `[Unreleased]`, ajustar enlaces
+  de comparación y los MINOR previstos de los gates— y no contiene ninguna decisión que
+  revisar. El ruleset `Protect-MAIN` **no se desactiva**: como no exige aprobaciones
+  (`required_approving_review_count: 0`), la PR se crea y se mergea en el mismo paso y la
+  protección se conserva. Si algún día pasa a exigirlas, el procedimiento deja de funcionar
+  solo. Los cambios de diseño siguen yendo por PR.
+- Queda escrito por qué el tag apunta al commit del corte y no a `main` sin más: un tag
+  publicado no se mueve, así que no se clava sobre un commit cuyo CHANGELOG todavía dice
+  `[Unreleased]`.
+
 ## [0.4.0] - 2026-09-09
 
 **Contacto con el host real.** La inspección de `midgard` desmintió supuestos del diseño y

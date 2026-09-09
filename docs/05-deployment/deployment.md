@@ -87,8 +87,10 @@ C4Deployment
 6. Verificación desde el appliance:
    ```bash
    source .env   # trae FRIGATE_CAM1_IP y las credenciales, sin teclearlas
-   ffprobe -rtsp_transport tcp \n     "rtsp://$FRIGATE_RTSP_USER:$FRIGATE_RTSP_PASSWORD@$FRIGATE_CAM1_IP:554/stream1"
-   ffprobe -rtsp_transport tcp \n     "rtsp://$FRIGATE_RTSP_USER:$FRIGATE_RTSP_PASSWORD@$FRIGATE_CAM1_IP:554/stream2"
+   ffprobe -rtsp_transport tcp \
+     "rtsp://$FRIGATE_RTSP_USER:$FRIGATE_RTSP_PASSWORD@$FRIGATE_CAM1_IP:554/stream1"
+   ffprobe -rtsp_transport tcp \
+     "rtsp://$FRIGATE_RTSP_USER:$FRIGATE_RTSP_PASSWORD@$FRIGATE_CAM1_IP:554/stream2"
    ```
    Debe reportar h264, 1920x1080 (stream1) y 640x360 (stream2).
 
@@ -187,7 +189,8 @@ log (certificado autofirmado: aceptar). Cambiar la contraseña desde Settings �
 - Audio (SR06 / FL §934.03): tomar un segmento recién grabado y comprobar que **no**
   tiene pista de audio —
   ```bash
-  ffprobe -v error -show_streams -select_streams a \n    "$(find /srv/frigate/media/frigate/recordings -name '*.mp4' | head -1)" | grep -c codec_type
+  ffprobe -v error -show_streams -select_streams a \
+    "$(find /srv/frigate/media/frigate/recordings -name '*.mp4' | head -1)" | grep -c codec_type
   ```
   Debe devolver `0`. (El default de Frigate es `preset-record-generic-audio-aac`; el
   config del proyecto lo fuerza a `preset-record-generic`.)
@@ -226,8 +229,10 @@ cron en el appliance ejecuta `snapshot-db.sh` (usa `sqlite3 .backup`, valida con
 ```bash
 sudo useradd -r -m -s /bin/bash nvrbackup
 sudo install -d -m 700 -o nvrbackup -g nvrbackup /home/nvrbackup/.ssh
-# Pegar la clave publica del NAS restringida a rsync de solo lectura:
-#   command="rrsync -ro /srv/frigate",no-agent-forwarding,no-port-forwarding,\n#   no-pty,no-X11-forwarding ssh-ed25519 AAAA...
+# Pegar la clave publica del NAS restringida a rsync de solo lectura.
+# En authorized_keys va TODO EN UNA SOLA LINEA; aqui se parte solo para leerla:
+#   command="rrsync -ro /srv/frigate",no-agent-forwarding,no-port-forwarding,
+#   no-pty,no-X11-forwarding ssh-ed25519 AAAA...
 sudo -u nvrbackup nano /home/nvrbackup/.ssh/authorized_keys
 sudo chmod 600 /home/nvrbackup/.ssh/authorized_keys
 # Lectura de la media sin poder escribir ni borrar:
