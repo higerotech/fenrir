@@ -11,6 +11,12 @@ eso los gates reservan *el siguiente* MINOR y no un número fijo — ver `.ai-dl
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-09
+
+**Contacto con el host real.** La inspección de `midgard` desmintió supuestos del diseño y
+evitó al menos tres fallos que habrían aparecido durante el despliegue. Tampoco cierra ningún
+gate: los Gates 2 a 5 siguen abiertos porque su evidencia exige el sistema corriendo.
+
 ### Cambiado
 
 - **Retención continua de 3 a 5 días** (ADR-0004 v1.1). La v1.0 fijó 3 días condicionada a
@@ -258,7 +264,8 @@ de abuso, threat assessment inicial y datos clasificados.
 - Audio deshabilitado por defecto: Florida §934.03 exige consentimiento de todas las partes.
 - Blink Mini fuera de alcance: protocolo cloud propietario, sin RTSP/ONVIF.
 
-[Unreleased]: https://github.com/higerotech/nvr-frigate/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/higerotech/nvr-frigate/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/higerotech/nvr-frigate/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/higerotech/nvr-frigate/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/higerotech/nvr-frigate/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/higerotech/nvr-frigate/releases/tag/v0.1.0
