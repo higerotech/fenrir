@@ -32,7 +32,7 @@ C4Context
     Person(hogar, "Miembro del hogar", "Consulta vista en vivo y clips")
 
     Enterprise_Boundary(lan, "LAN doméstica (trust boundary nftables)") {
-        System(nvr, "NVR Doméstico Frigate", "Ingiere RTSP, graba, detecta objetos y publica eventos")
+        System(nvr, "Fenrir — NVR doméstico", "Ingiere RTSP, graba, detecta objetos y publica eventos")
         System_Ext(camaras, "2x Tapo C310", "Cámaras IP RTSP/ONVIF con cuenta local")
         System_Ext(nodered, "Node-RED + stack IoT", "Consume eventos MQTT para automatizaciones")
     }
@@ -111,7 +111,7 @@ satisfechos; esto los refuerza. El presupuesto concreto:
 
 | Componente | Techo | Cómo se impone |
 |---|---|---|
-| Contenedor `frigate` (incluye tmpfs y shm) | 3 GB | `mem_limit` en el compose |
+| Contenedor `fenrir-frigate` (incluye tmpfs y shm) | 3 GB | `mem_limit` en el compose |
 | Contenedor `mosquitto` | 128 MB | `mem_limit` |
 | **Total del proyecto** | **≤3,2 GB de los 8 GB** | Suma de los anteriores |
 | `MemAvailable` del host en régimen normal | ≥4 GB | Alerta (fase 06) |

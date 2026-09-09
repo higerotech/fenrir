@@ -104,17 +104,17 @@ solo se anota **dónde se engancha la telemetría** (regla anti-ruido: un objeto
 
 | Nodo del despliegue | Qué se recolecta | Cómo | Retención de la señal |
 |---|---|---|---|
-| Contenedor `frigate` | Métricas Prometheus | Scrape de Prometheus a `frigate:5000` por la red Docker compartida | La del TSDB de Prometheus |
-| Contenedor `frigate` | Eventos y disponibilidad | MQTT `frigate/#` en el broker existente | Igual que los eventos |
-| Contenedor `frigate` | Logins fallidos de la UI (A09) | `docker logs frigate` | 30 MB por rotación (3×10 MB) |
+| Contenedor `fenrir-frigate` | Métricas Prometheus | Scrape de Prometheus a `fenrir:5000` por la red Docker compartida | La del TSDB de Prometheus |
+| Contenedor `fenrir-frigate` | Eventos y disponibilidad | MQTT `frigate/#` en el broker existente | Igual que los eventos |
+| Contenedor `fenrir-frigate` | Logins fallidos de la UI (A09) | `docker logs fenrir-frigate` | 30 MB por rotación (3×10 MB) |
 | Host / appliance | Salud del enrutamiento | **Ya cubierto**: los jobs de blackbox ICMP contra ambas WAN existían antes que este proyecto | La del TSDB |
 | Host / appliance | CPU, carga, memoria, swap y sistemas de ficheros | `node_exporter` en red de host, raspado por Prometheus | La del TSDB |
-| `/srv/frigate` | Ocupación, desde dos vantajes | `frigate_storage_*` y `node_filesystem_*` sobre `/`. **Si discrepan, algo está montado distinto de lo que la documentación asume** | La del TSDB |
-| `/srv/frigate` | Ocupación | Métrica de storage; `df -h` como respaldo | Manual |
+| `/srv/fenrir` | Ocupación, desde dos vantajes | `frigate_storage_*` y `node_filesystem_*` sobre `/`. **Si discrepan, algo está montado distinto de lo que la documentación asume** | La del TSDB |
+| `/srv/fenrir` | Ocupación | Métrica de storage; `df -h` como respaldo | Manual |
 
 **Cómo se alcanza el 5000 sin publicarlo.** Frigate se une a la red Docker de la plataforma
 (ADR-0008), donde ya viven el broker, Node-RED, Prometheus y Alertmanager. Prometheus raspa
-`frigate:5000` por esa red. Así **ni el 5000 ni el 1883 se publican en ninguna interfaz**:
+`fenrir:5000` por esa red. Así **ni el 5000 ni el 1883 se publican en ninguna interfaz**:
 T6 pasa de "mitigado no publicando el puerto" a "no hay superficie que mitigar".
 
 ## Alertas
@@ -128,7 +128,7 @@ T6 pasa de "mitigado no publicando el puerto" a "no hay superficie que mitigar".
 | CPU sostenida | >50 % durante 15 min | Media | RNF01, ADR-0002 | Runbook I-3 |
 | Memoria del host baja | `MemAvailable` <1,5 GB en 3 muestras | Alta | RNF03, T7 | Runbook I-6 |
 | Frigate cerca de su límite | `frigate_mem_usage_percent` >80 % en 3 muestras, o crecimiento monótono en 24 h | Media | RNF03, T7 | Runbook I-6 |
-| Contenedor reiniciando | Uptime se reinicia más de 3 veces en 1 h. **Con `mem_limit`, un reinicio repetido suele ser OOM del contenedor**: confirmar con `docker inspect frigate --format '{{.State.OOMKilled}}'` | Alta | A10, T7 | Runbook I-4 |
+| Contenedor reiniciando | Uptime se reinicia más de 3 veces en 1 h. **Con `mem_limit`, un reinicio repetido suele ser OOM del contenedor**: confirmar con `docker inspect fenrir-frigate --format '{{.State.OOMKilled}}'` | Alta | A10, T7 | Runbook I-4 |
 | Memoria del host baja / crítica | `MemAvailable` <4 GB (15 min) / <1,5 GB (5 min) | Media / **Crítica** | RNF03, T7 | Runbook I-6 |
 | Swap en uso | >256 MB durante 15 min | Media | RNF03 | Runbook I-6 |
 | CPU del host sostenida | >50 % durante 15 min | Media | RNF01, ADR-0002 | Runbook I-3 |
@@ -177,8 +177,8 @@ frigate` y revisar el log en busca de errores de RTSP. Si no responde: comprobar
 DHCP en dnsmasq (¿cambió la IP?) y la alimentación. Causa frecuente: la cámara perdió el
 Wi-Fi o la app Tapo aplicó una actualización de firmware que reseteó la cuenta local.
 
-**I-2 · Disco casi lleno.** Confirmar con `df -h /srv/frigate`. Verificar que la purga está
-funcionando: `find /srv/frigate/media/frigate/recordings -mtime +3 | head`. Si aparecen
+**I-2 · Disco casi lleno.** Confirmar con `df -h /srv/fenrir`. Verificar que la purga está
+funcionando: `find /srv/fenrir/media/recordings -mtime +3 | head`. Si aparecen
 archivos más viejos que la retención, la purga está fallando (revisar el log de Frigate). Si
 la purga funciona y aun así se llena, el dimensionado quedó corto: bajar la retención
 continua o mover el media store a un disco mayor. **No borrar a mano** salvo emergencia: la
@@ -194,13 +194,13 @@ basta, reabrir ADR-0002 hacia un mini-PC dedicado. Registrar qué palanca se us�
 evidencia con la que se decide el ciclo 2.
 
 **I-4 · Contenedor en crash-loop.** `docker compose logs --tail 200 frigate`. Si es un error
-de validación de config, restaurar el backup de `/srv/frigate/config` y aplicar el flujo del
+de validación de config, restaurar el backup de `/srv/fenrir/config` y aplicar el flujo del
 §9 del runbook. Si empezó tras una subida de versión, hacer rollback al tag anterior — para
 eso está pineado.
 
 **I-6 · Presión de memoria.** Primero separar quién la consume: `docker stats --no-stream`
 contra `free -h`. Si el contenedor está cerca de sus 3 GB, mirar de dónde sale — el `tmpfs`
-cuenta dentro del límite, así que `docker exec frigate df -h /tmp/cache` es la comprobación
+cuenta dentro del límite, así que `docker exec fenrir-frigate df -h /tmp/cache` es la comprobación
 clave. **Si el tmpfs está lleno, el problema real es el disco, no la memoria**: la caché no
 puede drenar al HDD y crece hacia su techo (acoplamiento T1→T7); ir al runbook I-2 y volver.
 Si el tmpfs está vacío y el RSS sube solo, es una fuga: reiniciar el contenedor recupera el

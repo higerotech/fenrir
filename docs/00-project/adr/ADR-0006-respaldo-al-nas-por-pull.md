@@ -35,7 +35,7 @@ Qué se copia, y por qué solo eso:
 
 | Origen | Por qué | Tamaño aprox. |
 |---|---|---|
-| `/srv/frigate/config/` (incluye `frigate.db`) | Es lo que hace reconstruible el sistema; hoy el runbook lo respalda a mano solo antes de upgrades | MB |
+| `/srv/fenrir/config/` (incluye `frigate.db`) | Es lo que hace reconstruible el sistema; hoy el runbook lo respalda a mano solo antes de upgrades | MB |
 | Alertas y snapshots (`media/frigate/clips/`) | Es el material con valor probatorio: lo que querrías tener tras un incidente | ~35 GB |
 | Exportados | Ya han sido señalados como relevantes por una persona | Variable |
 

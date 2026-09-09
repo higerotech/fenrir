@@ -10,7 +10,7 @@
 # activo.
 set -eu
 
-CONFIG_DIR="${FRIGATE_CONFIG_DIR:-/srv/frigate/config}"
+CONFIG_DIR="${FENRIR_CONFIG_DIR:-/srv/fenrir/config}"
 DB="$CONFIG_DIR/frigate.db"
 SNAP="$CONFIG_DIR/frigate.db.backup"
 

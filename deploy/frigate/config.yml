@@ -94,7 +94,7 @@ record:
   # En 0.17 el continuo es `continuous.days`. El `record.retain: {days, mode}` de versiones
   # anteriores ya no existe y Frigate arranca en SAFE MODE si lo encuentra, ignorando toda
   # la configuracion. Verificado contra el modelo del propio contenedor:
-  #   docker exec frigate python3 -c "from frigate.config.config import RecordConfig; print(RecordConfig.model_json_schema()['properties'].keys())"
+  #   docker exec fenrir-frigate python3 -c "from frigate.config.config import RecordConfig; print(RecordConfig.model_json_schema()['properties'].keys())"
   continuous:
     days: 5
   alerts:

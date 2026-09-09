@@ -1,8 +1,15 @@
-# NVR Doméstico Frigate
+# Fenrir — NVR doméstico
 
 Concentrador de videovigilancia local (DVR + monitoreo casi en tiempo real) sobre Frigate,
 desplegado en el appliance de red doméstico (Ubuntu Server 24.04, i3-3240).
 Documentación bajo metodología AI-DLC.
+
+**Fenrir** es el nombre del proyecto dentro de la plataforma doméstica, cuyos componentes
+siguen nomenclatura nórdica (`yggdrasil` la plataforma, `mimir` las métricas, `odin` los
+paneles, `ratatosk` el broker). El lobo encadenado: vigila, y el diseño entero consiste en
+tenerlo atado — sin salida a internet, sin pista de audio, con la API sin autenticar fuera
+de toda interfaz. **Frigate** es el software que lo implementa; el nombre del producto se
+mantiene donde designa al producto.
 
 ## Mapa del repo
 
@@ -13,7 +20,9 @@ Documentación bajo metodología AI-DLC.
 - `docs/04-testing/` — plan de verificacion: aceptacion, seguridad y carga (Gate 3)
 - `docs/05-deployment/` — runbook paso a paso del despliegue (borrador hacia Gate 4)
 - `docs/06-monitoring/` — SLIs/SLOs, alertas y respuesta a incidentes (Gate 5)
-- `deploy/` — docker-compose, config de Frigate y Mosquitto (artefactos ejecutables)
+- `deploy/` — docker-compose, config de Frigate y de Prometheus (artefactos ejecutables).
+  Los subdirectorios llevan el nombre del **software** cuya configuración contienen
+  (`frigate/`, `prometheus/`), no el del proyecto.
 - `.ai-dlc/gates/` — checklists de los Gates 0 a 5
 - `CHANGELOG.md` — Keep a Changelog 1.1.0 + SemVer 2.0.0
 

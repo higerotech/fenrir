@@ -28,7 +28,7 @@ el contenedor levantado contra el host.
   configuración entera** — cámaras, detección, retención y endurecimiento incluidos. Es el
   peor modo de fallo de los tres, porque el contenedor queda «arriba». Verificado contra el
   modelo del propio contenedor, no contra la documentación:
-  `docker exec frigate python3 -c "from frigate.config.config import RecordConfig; print(RecordConfig.model_json_schema()['properties'].keys())"`.
+  `docker exec fenrir-frigate python3 -c "from frigate.config.config import RecordConfig; print(RecordConfig.model_json_schema()['properties'].keys())"`.
 - **`detect.enabled` viene en `False` por defecto en 0.17** y hay que activarlo por cámara.
   Sin esto el sistema graba pero no detecta: RF03 no se cumple y el silencio es idéntico al
   de una escena sin movimiento.
@@ -45,7 +45,7 @@ Y un cuarto que no es de Frigate sino del propio runbook:
 
 - **El test de audio del runbook pasaba en falso.** `ffprobe` no está en el `PATH` del
   contenedor —vive en `/usr/lib/ffmpeg/7.0/bin/`— y la ruta del `find` sobraba un nivel:
-  la media del host cuelga de `/srv/frigate/media/`, y el `frigate/` interno lo pone el
+  la media del host cuelga de `/srv/fenrir/media/`, y el `frigate/` interno lo pone el
   montaje. Con cualquiera de las dos cosas mal, el comando aborta, `grep -c codec_type`
   devuelve `0` y **eso es exactamente lo que el runbook lee como «sin audio»**. Un control
   de cumplimiento (SR06 / FL §934.03) que se aprueba solo no es un control. Corregidos el
@@ -85,6 +85,51 @@ safe mode, o sea sin las tareas de mantenimiento — pero dos contradicen al dis
 
 ### Cambiado
 
+- **El proyecto pasa a llamarse Fenrir**, siguiendo la nomenclatura nórdica de la
+  plataforma doméstica (`yggdrasil` la plataforma, `mimir` las métricas, `odin` los
+  paneles, `ratatosk` el broker). El lobo encadenado: vigila, y el diseño entero consiste
+  en tenerlo atado — sin salida a internet, sin pista de audio, con la API sin autenticar
+  fuera de toda interfaz.
+
+  La convención se leyó del host, no se inventó: ahí el **proyecto compose** es la
+  plataforma, el **servicio** lleva el nombre mítico y el **contenedor** es
+  `<proyecto>-<software>` (`yggdrasil-prometheus` corre el servicio `mimir`). Aplicado:
+
+  | | Antes | Ahora |
+  |---|---|---|
+  | Repositorio | `higerotech/nvr-frigate` | `higerotech/fenrir` |
+  | Proyecto compose | `nvr` | `fenrir` |
+  | Servicio | `frigate` | `fenrir` |
+  | Contenedor | `frigate` | `fenrir-frigate` |
+  | Job de Prometheus | `frigate` | `fenrir` |
+  | Raíz de despliegue | `/opt/nvr` | `/opt/fenrir` |
+  | Datos y config | `/srv/frigate` | `/srv/fenrir` |
+
+  **Lo que deliberadamente no cambia**, porque nombra al producto y no al proyecto: la
+  imagen y el software Frigate, sus métricas `frigate_*`, sus rutas internas
+  (`/media/frigate`, `/config`), `frigate.db`, y el directorio `deploy/frigate/` — los
+  subdirectorios de `deploy/` llevan el nombre del software cuya configuración contienen,
+  igual que `deploy/prometheus/`.
+
+  **Tampoco cambian el usuario ni los tópicos MQTT `frigate/#`**, y no por descuido: viven
+  en el broker de `yggdrasil`, con su ACL, y los consume Node-RED. Renombrarlos es un
+  cambio en la plataforma con clientes que romper, no parte de este rename. Queda anotado
+  como la única costura donde el nombre viejo sigue a la vista.
+
+- **El error de un nivel en la ruta de la media estaba en seis sitios, no en uno.** En el
+  host la media cuelga de `<raiz>/media/`; el `frigate/` intermedio lo añade el montaje del
+  contenedor, no el disco. Escrito como `<raiz>/media/frigate/...` apuntaba a un directorio
+  inexistente en: el `find` de grabaciones del runbook (Paso 7), el `setfacl` del respaldo
+  (Paso 8bis y `deploy/backup/README.md`), el caso T-03 del plan de pruebas, la
+  comprobación de purga de `observability.md` — y las dos rutas de `rsync` de
+  `pull-from-appliance.sh`, que **habrían fallado en la primera ejecución real**, todavía
+  pendiente. Es el mismo error que hacía pasar en falso el test de audio: un `find` sin
+  resultados no distingue «no hay» de «miraste donde no era». De paso, el comentario del
+  continuo decía 43 GB/día; el dato medido es ~14.
+- **El diagrama de despliegue seguía mostrando un Mosquitto dentro del compose del NVR**,
+  que ADR-0008 eliminó hace dos versiones. Ahora muestra el broker de la plataforma como
+  lo que es: un contenedor de otro proyecto. También corrige la retención (5/14, no 3/14)
+  y la resolución de las cámaras.
 - **El corte de versión va directo a `main`, sin ronda de revisión** (`config-baseline.md`,
   «Cómo se corta una versión»). El corte es mecánico —mover `[Unreleased]`, ajustar enlaces
   de comparación y los MINOR previstos de los gates— y no contiene ninguna decisión que
@@ -349,8 +394,8 @@ de abuso, threat assessment inicial y datos clasificados.
 - Audio deshabilitado por defecto: Florida §934.03 exige consentimiento de todas las partes.
 - Blink Mini fuera de alcance: protocolo cloud propietario, sin RTSP/ONVIF.
 
-[Unreleased]: https://github.com/higerotech/nvr-frigate/compare/v0.4.0...HEAD
-[0.4.0]: https://github.com/higerotech/nvr-frigate/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/higerotech/nvr-frigate/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/higerotech/nvr-frigate/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/higerotech/nvr-frigate/releases/tag/v0.1.0
+[Unreleased]: https://github.com/higerotech/fenrir/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/higerotech/fenrir/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/higerotech/fenrir/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/higerotech/fenrir/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/higerotech/fenrir/releases/tag/v0.1.0

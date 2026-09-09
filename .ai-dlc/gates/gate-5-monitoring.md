@@ -5,7 +5,7 @@
 - [ ] SLIs/SLOs definidos con su fuente de medida (CPU del host, % de disco, uptime por cámara,
       latencia de vivo, retraso evento→MQTT) y error budget
 - [ ] Watchdog de disponibilidad: Node-RED suscrito a `frigate/available`; alerta si `offline`
-- [ ] Alerta de disco al 90 % en `/srv/frigate` (T1) con destino real (no solo un log)
+- [ ] Alerta de disco al 90 % en `/srv/fenrir` (T1) con destino real (no solo un log)
 - [ ] Alerta de CPU sostenida >50 % (T2), que es la condición de reapertura de ADR-0002
 - [ ] Alertas de memoria (T7): `MemAvailable` del host <1,5 GB y Frigate >80 % de su límite
 - [ ] `node_exporter` desplegado y raspado: sin métricas de host, RNF01 y RNF03 no se

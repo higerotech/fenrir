@@ -123,7 +123,7 @@ python ~/.claude/skills/ai-dlc/scripts/validate_mermaid.py docs
 ```
 
 El arranque real es la validación definitiva: Frigate rechaza un config inválido y lo dice
-en el log. `docker compose logs frigate | grep -i "validation"` debe salir vacío.
+en el log. `docker compose logs fenrir | grep -i "validation"` debe salir vacío.
 
 **Versión del schema.** `config.yml` declara `version: 0.17-0`, que es el
 `CURRENT_CONFIG_VERSION` de `frigate/util/config.py` en el tag `v0.17.2`. Declarar una
@@ -153,7 +153,7 @@ arreglos de seguridad interesan pronto. Si se prefiere reproducibilidad estricta
 por el digest fijado arriba.
 
 Antes de cualquier subida de versión: leer las release notes del tag destino, hacer backup de
-`/srv/frigate/config` (incluye `frigate.db`) y seguir el flujo del §9 del runbook.
+`/srv/fenrir/config` (incluye `frigate.db`) y seguir el flujo del §9 del runbook.
 
 ## Secretos (OWASP A02)
 

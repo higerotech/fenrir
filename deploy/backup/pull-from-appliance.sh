@@ -5,26 +5,26 @@
 # y el tránsito va cifrado, en vez de por una export NFS con AUTH_SYS.
 #
 # Configuración por entorno: este repositorio es público y no lleva ni un dato real.
-# Ponerlos en /etc/nvr-backup.env con permisos 600.
+# Ponerlos en /etc/fenrir-backup.env con permisos 600.
 #
 #   NVR_HOST=<ip-o-nombre-del-appliance>
 #   NVR_USER=nvrbackup
 #   NVR_KEY=/ruta/a/la/clave/privada
-#   NVR_DEST=/volumen/backups/nvr
+#   NVR_DEST=/volumen/backups/fenrir
 set -eu
 
 # shellcheck disable=SC1091
-[ -f /etc/nvr-backup.env ] && . /etc/nvr-backup.env
+[ -f /etc/fenrir-backup.env ] && . /etc/fenrir-backup.env
 
 NVR_HOST="${NVR_HOST:?falta NVR_HOST}"
 NVR_USER="${NVR_USER:-nvrbackup}"
 NVR_KEY="${NVR_KEY:?falta NVR_KEY}"
 NVR_DEST="${NVR_DEST:?falta NVR_DEST}"
-LOCK="${NVR_LOCK:-/tmp/nvr-backup.lock}"
+LOCK="${NVR_LOCK:-/tmp/fenrir-backup.lock}"
 STAMP="$NVR_DEST/.last-success"
 
-log() { echo "$(date -Is) [nvr-backup] $*"; }
-die() { echo "$(date -Is) [nvr-backup] ERROR: $*" >&2; exit 1; }
+log() { echo "$(date -Is) [fenrir-backup] $*"; }
+die() { echo "$(date -Is) [fenrir-backup] ERROR: $*" >&2; exit 1; }
 
 # Sin lock, una ejecución lenta se solapa con la siguiente y acaban compitiendo por el
 # mismo destino. mkdir es atómico en cualquier sistema de ficheros POSIX.
@@ -40,7 +40,7 @@ SSH="ssh -i $NVR_KEY -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyCheck
 # NAS necesita su propia política de retención (ver README).
 RSYNC_OPTS="-a --partial --human-readable --stats"
 
-# Las rutas son relativas al root de rrsync (`command="rrsync -ro /srv/frigate"`).
+# Las rutas son relativas al root de rrsync (`command="rrsync -ro /srv/fenrir"`).
 # Si sale "access denied", probar con barra inicial: rrsync acepta ambas formas según versión.
 copiar() {
     origen="$1"; destino="$2"
@@ -63,12 +63,12 @@ if [ ! -f "$NVR_DEST/config/frigate.db.backup" ]; then
 fi
 
 # 2. Alertas y snapshots: el material con valor probatorio.
-copiar "media/frigate/clips/" "clips"
+copiar "media/clips/" "clips"
 
 # 3. Exportados: alguien ya los marcó como relevantes.
-copiar "media/frigate/exports/" "exports"
+copiar "media/exports/" "exports"
 
-# El continuo NO se copia: 43 GB/día replicados reintroducen el I/O de red que ADR-0006
+# El continuo NO se copia: ~14 GB/día (medido) replicados reintroducen el I/O que ADR-0006
 # descarta. Si muere el disco se pierde el metraje de contexto, no los eventos.
 
 # Marca de frescura: es la fuente del SLI de la fase 06 (alerta si supera 36 h).
