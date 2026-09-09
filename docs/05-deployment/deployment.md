@@ -61,13 +61,30 @@ C4Deployment
    crear usuario/contraseña locales (esto habilita RTSP y ONVIF; no usar la cuenta TP-Link).
 2. Desactivar el micrófono: **Configuración → Detección y alertas / Cámara → Micrófono → Off**.
 3. Firmware al día desde la app (último parche antes de aislarlas de internet).
-4. Reserva DHCP en dnsmasq del router (sustituir MACs reales):
+4. Direccionamiento fijo. **Dos casos según dónde estén las cámaras:**
+
+   *Destino (cámaras en la LAN del appliance)* — reserva DHCP en `dnsmasq`:
    ```
    dhcp-host=<MAC-CAM-1>,<IP-CAM-1>,cam-01
    dhcp-host=<MAC-CAM-2>,<IP-CAM-2>,cam-02
    ```
    Reiniciar dnsmasq y reconectar las cámaras.
-5. Verificación desde el appliance:
+
+   *Estado actual (ADR-0007, cámaras en el Wi-Fi del lado WAN)* — el appliance no las
+   direcciona. Poner **IP fija en la propia cámara** desde la app Tapo: no depende de la
+   configuración de un router ajeno, que es lo que interesa en un montaje transitorio.
+
+5. *Solo en el estado actual:* fijar la ruta hacia la red de las cámaras a la interfaz por
+   la que se alcanzan, para que el balanceo dual-WAN no la mueva. Sin esto, un failover
+   deja al NVR sin cámaras de forma intermitente, y el síntoma —caídas aleatorias— es de
+   los más caros de diagnosticar.
+   ```bash
+   # Sustituir <red-camaras>/24 e <iface-wan> por los reales (no van al repo)
+   sudo ip route add <red-camaras>/24 dev <iface-wan>   # probar en caliente
+   ip route get <ip-cam-1>                              # debe salir por esa interfaz
+   ```
+   Persistirlo después en la configuración de red del appliance, no solo en caliente.
+6. Verificación desde el appliance:
    ```bash
    source .env   # trae FRIGATE_CAM1_IP y las credenciales, sin teclearlas
    ffprobe -rtsp_transport tcp \n     "rtsp://$FRIGATE_RTSP_USER:$FRIGATE_RTSP_PASSWORD@$FRIGATE_CAM1_IP:554/stream1"

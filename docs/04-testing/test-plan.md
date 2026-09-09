@@ -169,6 +169,8 @@ la última columna. Un caso sin evidencia **no cuenta como aprobado**.
 | T-18 | RNF03 | Tras T-16 (exportar un clip largo): `docker exec frigate df -h /tmp/cache` | El `tmpfs` se drena tras el export y no queda ocupado | |
 | T-19 | ADR-0006 | Lanzar la tarea del NAS; luego **restaurar** un archivo cualquiera desde el NAS y reproducirlo | El respaldo completa, y el archivo restaurado se reproduce. Un respaldo nunca restaurado no es un respaldo | |
 | T-20 | ADR-0006 | Apagar el NAS y dejar el NVR 30 min | Grabación, vivo y eventos siguen sin inmutarse: el appliance no monta nada del NAS | |
+| T-21 | ADR-0007 | `ip route get <ip-cam>` antes y después de forzar un failover dual-WAN | La ruta a las cámaras no cambia de interfaz: la regla de política la fija | |
+| T-22 | ADR-0007 | Dejar el NVR 24 h y revisar reconexiones RTSP en el log | Las cámaras van por Wi-Fi y por WAN: contar las caídas para saber si el watchdog basta o hay que ajustar `frigate/available` | |
 
 ## Pruebas de seguridad (equivalente DAST) — los abusos del PRD como casos
 
@@ -178,6 +180,7 @@ la última columna. Un caso sin evidencia **no cuenta como aprobado**.
 | S-02 | A1 / T6 | `curl -s http://IP-LAN:5000/api/config` desde la LAN | Conexión rechazada: el puerto no está publicado |
 | S-03 | A2 / T5 | `sudo ss -lntup` filtrando los puertos del proyecto | Ninguna línea con `0.0.0.0` ni `*` |
 | S-04 | A2 / T5 | Desde datos móviles: `nmap -Pn <IP-WAN> -p 8971,8554,8555,1883` | Los cuatro `filtered`, repitiendo por cada WAN |
+| S-11 | ADR-0007 | Desde un equipo del segmento de las cámaras, intentar alcanzar la LAN del appliance y la UI del NVR | Todo rechazado por el `default drop` de entrada WAN. Confirma que el NVR sigue siendo solo cliente saliente y que SR02 se mantiene |
 | S-05 | A3 | Desde una cámara, o simulando su IP, intentar salir a internet | Bloqueado por la regla de egress |
 | S-06 | A4 / T1→T7 | Rellenar `/srv/frigate` hasta el 92 % con `fallocate` y esperar. Vigilar a la vez `docker exec frigate df -h /tmp/cache` y `free -h` | Salta la alerta de watermark; el router no se degrada; **y el `tmpfs` no arrastra la memoria del host**: si Frigate muere, lo hace por su `mem_limit` y no se lleva a `dnsmasq`. **Borrar el archivo al terminar** |
 | S-07 | A5 | `mosquitto_sub -t '#'` sin credenciales | Rechazado por `allow_anonymous false` |

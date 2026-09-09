@@ -23,6 +23,24 @@ eso los gates reservan *el siguiente* MINOR y no un número fijo — ver `.ai-dl
 
 ### Añadido
 
+- **ADR-0007 — cámaras temporalmente fuera del trust boundary LAN.** Ambas C310 están en el
+  Wi-Fi del lado WAN mientras se adquiere el equipamiento Wi-Fi definitivo. Se documenta como
+  **desviación temporal con condición de salida**, no reescribiendo el diseño objetivo: el
+  destino no ha cambiado y rehacer charter, C4 y threat model para un estado transitorio
+  habría que deshacerlo después.
+  - **SR02 se mantiene**: el NVR es cliente RTSP saliente, así que no se abre ningún puerto de
+    entrada WAN y el `default drop` sigue intacto.
+  - **T3 sube temporalmente de 4,2 a 6,0**: la justificación original —"LAN física propia"—
+    no aplica a un segmento que el appliance no gobierna. Acotado a quien tenga la contraseña
+    de ese Wi-Fi, no expuesto a internet.
+  - **T4 queda más contenida, no menos**: las cámaras están al otro lado del `default drop` y
+    no alcanzan la LAN en absoluto. Al migrarlas, el egress deny pasa de deseable a obligatorio.
+  - Controles compensatorios: IP fija en la propia cámara (no reserva DHCP en router ajeno),
+    ruta fijada para que el failover dual-WAN no la mueva, credenciales únicas y **rotación al
+    migrar**, y WPA2/WPA3 fuerte en ese Wi-Fi.
+  - Casos T-21 (la ruta no cambia con el failover), T-22 (contar reconexiones RTSP en 24 h) y
+    S-11 (desde el segmento de las cámaras no se alcanza la LAN ni la UI).
+
 - **ADR-0006 — respaldo al NAS iniciado por el NAS (pull), no por el appliance.** La
   propuesta original era rotar grabaciones antiguas al NAS por NFS; **no es implementable**:
   Frigate no tiene almacenamiento por niveles, su retención purga en vez de migrar, y las

@@ -75,6 +75,9 @@ mindmap
 - CPU Ivy Bridge sin AVX2 → funciones de IA avanzadas de Frigate quedan fuera.
 - Media en HDD SATA local; sin cifrado en reposo (mitigado por acceso físico controlado).
 - Las Tapo C310 no soportan TLS en RTSP → el tráfico de video viaja en claro dentro de la LAN.
+- **Temporal (ADR-0007):** las cámaras están en el Wi-Fi del lado WAN mientras se adquiere el
+  equipamiento Wi-Fi definitivo. El diseño objetivo no cambia; la desviación tiene condición
+  de salida escrita y credenciales a rotar al migrar.
 
 ## Métricas de éxito del proyecto
 - Latencia de vista en vivo ≤ 2 s (go2rtc/WebRTC) en LAN y por WireGuard.
