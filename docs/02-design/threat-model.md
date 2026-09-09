@@ -16,7 +16,9 @@ El DFD del sistema vive en el PRD (`docs/01-requirements/mvp-nvr.md`, threat ass
 es el insumo de este análisis — no se duplica (regla anti-ruido). Trust boundaries:
 1. **WAN ↔ appliance**: nftables default-drop; nada del NVR cruza este límite.
 2. **LAN ↔ segmento cámaras**: las C310 solo aceptan/emiten tráfico con el NVR; egress a
-   internet bloqueado (opcional dejar NTP).
+   internet bloqueado (opcional dejar NTP). **Estado actual (ADR-0007)**: las cámaras están
+   fuera de este boundary, en el Wi-Fi del lado WAN. El NVR las alcanza como cliente RTSP
+   saliente por WAN2, así que no se abre ningún puerto de entrada y SR02 se mantiene.
 3. **Host ↔ contenedores**: Docker sin `privileged`; solo `/dev/dri` expuesto a Frigate.
 4. **LAN ↔ remoto**: únicamente peers WireGuard autenticados.
 
@@ -57,15 +59,18 @@ quadrantChart
 | T5 | Puertos NVR expuestos a WAN por error | 9 | 3 | 4 | 9 | 5 | 6.0 | Bind explícito a `${FRIGATE_LAN_IP}` en compose (Docker hace DNAT y **no** pasa por `input`, así que el default-drop por sí solo no basta) + reglas `DOCKER-USER`; verificación §8 del runbook |
 | T6 | API 5000 sin auth alcanzable en LAN | 8 | 4 | 6 | 6 | 6 | 6.0 | Puerto no mapeado en compose; solo 8971 autenticado |
 | T7 | Agotamiento de memoria del host: el OOM killer del kernel elige víctima por heurística y puede matar `dnsmasq` (DNS/DHCP de la casa) en vez de Frigate | 8 | 3 | 3 | 8 | 5 | 5.4 | `mem_limit` acota el contenedor: mata Docker a Frigate, no el kernel al router (RNF03); alerta de `MemAvailable` |
-| T4 | C310 comprometida pivotea o exfiltra | 7 | 4 | 5 | 6 | 5 | 5.4 | Egress deny cámaras (nftables, pendiente MACs); credencial por cámara |
+| T4 | C310 comprometida pivotea o exfiltra | 7 | 4 | 5 | 6 | 5 | 5.4 | Egress deny cámaras (nftables). **Mientras dure ADR-0007 esta amenaza está más contenida, no menos**: las cámaras quedan al otro lado del `default drop` de entrada WAN y no alcanzan la LAN en absoluto. Al migrarlas a la LAN definitiva, el egress deny pasa de deseable a obligatorio |
 | T8 | El respaldo crea una segunda ubicación de video Confidencial: comprometer o robar el NAS expone el mismo material que proteger el appliance | 6 | 4 | 4 | 5 | 5 | 4.8 | Solo alertas, snapshots y `config/` (no el continuo); cuenta SSH dedicada de solo lectura restringida por `command=`; el NAS hereda la clasificación de datos (ADR-0006) |
-| T3 | Sniffing RTSP/credenciales en LAN | 5 | 3 | 4 | 5 | 4 | 4.2 | Aceptado L1 (LAN física propia); mitigación futura: VLAN cámaras |
+| T3 | Sniffing RTSP/credenciales. **Elevada temporalmente a 6.0 por ADR-0007**: las cámaras están en un Wi-Fi del lado WAN que el appliance no gobierna, así que la justificación original —control físico del segmento— no aplica. Acotado a quien tenga la contraseña de ese Wi-Fi, no expuesto a internet | 6 | 5 | 6 | 6 | 7 | **6.0 (temporal)** / 4.2 (destino) | Credencial única por cámara y **rotación al migrar**; WPA2/WPA3 fuerte. Vuelve a 4.2 al cumplirse la condición de salida de ADR-0007 |
 
 ## Controles y trazabilidad
 - T1, T2 → `deploy/frigate/config.yml` (retención, fps) + runbook §7 (verificación de carga).
 - T4, T5 → reglas nftables del proyecto router (pendientes de MACs/IPs definitivas de las
   cámaras — **entrada para el ciclo de configuración de red ya en curso**).
 - T5, T6 → `deploy/docker-compose.yml` (mapeo mínimo + bind a la IP LAN; 5000 sin publicar).
+- T3, T4 → ADR-0007 mientras las cámaras estén fuera de la LAN. La ADR lleva la condición de
+  salida y el orden en que se restauran los controles: mover, **rotar credenciales**, aplicar
+  egress deny, devolver T3 a 4.2.
 - T8 → ADR-0006: el NAS tira por SSH y el appliance no monta nada, así que el respaldo no
   añade dependencias ni puntos de bloqueo al host que enruta. Verificación en T-19.
 - T7 → `mem_limit` en ambos servicios (RNF03) + SLI `frigate_mem_usage_percent` y alerta de

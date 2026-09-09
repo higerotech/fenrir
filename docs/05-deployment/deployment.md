@@ -61,13 +61,30 @@ C4Deployment
    crear usuario/contraseña locales (esto habilita RTSP y ONVIF; no usar la cuenta TP-Link).
 2. Desactivar el micrófono: **Configuración → Detección y alertas / Cámara → Micrófono → Off**.
 3. Firmware al día desde la app (último parche antes de aislarlas de internet).
-4. Reserva DHCP en dnsmasq del router (sustituir MACs reales):
+4. Direccionamiento fijo. **Dos casos según dónde estén las cámaras:**
+
+   *Destino (cámaras en la LAN del appliance)* — reserva DHCP en `dnsmasq`:
    ```
    dhcp-host=<MAC-CAM-1>,<IP-CAM-1>,cam-01
    dhcp-host=<MAC-CAM-2>,<IP-CAM-2>,cam-02
    ```
    Reiniciar dnsmasq y reconectar las cámaras.
-5. Verificación desde el appliance:
+
+   *Estado actual (ADR-0007, cámaras en el Wi-Fi del lado WAN)* — el appliance no las
+   direcciona. Poner **IP fija en la propia cámara** desde la app Tapo: no depende de la
+   configuración de un router ajeno, que es lo que interesa en un montaje transitorio.
+
+5. *Solo en el estado actual:* **comprobar** —no fijar— la ruta hacia las cámaras.
+   ```bash
+   ip route get <ip-cam-1>    # debe salir por la interfaz esperada
+   ip route show | grep <red-camaras>
+   ```
+   Si aparece como `proto kernel scope link`, es una **ruta conectada**: la interfaz tiene
+   dirección en esa misma red y ninguna regla adicional hace falta, porque una ruta
+   conectada siempre gana sobre la ruta por defecto y el balanceo dual-WAN no la toca.
+   Solo si la red de las cámaras estuviera a un salto de distancia habría que fijar una
+   regla de política.
+6. Verificación desde el appliance:
    ```bash
    source .env   # trae FRIGATE_CAM1_IP y las credenciales, sin teclearlas
    ffprobe -rtsp_transport tcp \n     "rtsp://$FRIGATE_RTSP_USER:$FRIGATE_RTSP_PASSWORD@$FRIGATE_CAM1_IP:554/stream1"
