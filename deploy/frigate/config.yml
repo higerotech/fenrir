@@ -89,9 +89,12 @@ review:
 # los 422 GB disponibles = 66 % del watermark del 90 %, que es el techo operativo de T1).
 record:
   enabled: true
-  retain:
+  # En 0.17 el continuo es `continuous.days`. El `record.retain: {days, mode}` de versiones
+  # anteriores ya no existe y Frigate arranca en SAFE MODE si lo encuentra, ignorando toda
+  # la configuracion. Verificado contra el modelo del propio contenedor:
+  #   docker exec frigate python3 -c "from frigate.config.config import RecordConfig;   #     print(RecordConfig.model_json_schema()['properties'].keys())"
+  continuous:
     days: 5
-    mode: all
   alerts:
     retain:
       days: 14
