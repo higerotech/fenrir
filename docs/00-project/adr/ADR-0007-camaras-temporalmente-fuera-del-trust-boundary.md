@@ -57,9 +57,13 @@ compensatorios que cuestan poco y son reales:
 
 1. **IP fija configurada en la propia cámara**, no reserva DHCP en un router ajeno. Es más
    robusto para un estado transitorio: no depende de la configuración del router del ISP.
-2. **Ruta a la red de las cámaras fijada a WAN2** con regla de política, para que el
-   balanceo dual-WAN no la mueva. Sin esto, un failover deja al NVR sin cámaras de forma
-   intermitente — y se manifestaría como caídas aleatorias, difíciles de diagnosticar.
+2. ~~Ruta a la red de las cámaras fijada con regla de política~~ — **innecesario, verificado
+   en el host 2026-09-09**. La interfaz WAN2 del appliance tiene dirección en la propia red
+   de las cámaras, así que existe una **ruta conectada** (`proto kernel scope link`) que
+   siempre gana sobre la ruta por defecto: el balanceo dual-WAN no puede moverla. Lo escribí
+   asumiendo que las cámaras estaban detrás de un salto, y no lo están.
+   Lo que sí queda: si esa interfaz cae, las cámaras son inalcanzables y ninguna ruta lo
+   arregla. Eso es disponibilidad de enlace, y lo cubre el watchdog de `frigate/available`.
 3. **Credenciales de cámara únicas y fuertes, una por cámara**, y **rotarlas al migrar** a la
    LAN definitiva: hay que asumir que las actuales han viajado por un medio compartido.
 4. **Wi-Fi del segmento con WPA2/WPA3 y contraseña fuerte.** Es lo único que separa el stream

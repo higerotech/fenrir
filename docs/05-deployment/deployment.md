@@ -74,16 +74,16 @@ C4Deployment
    direcciona. Poner **IP fija en la propia cámara** desde la app Tapo: no depende de la
    configuración de un router ajeno, que es lo que interesa en un montaje transitorio.
 
-5. *Solo en el estado actual:* fijar la ruta hacia la red de las cámaras a la interfaz por
-   la que se alcanzan, para que el balanceo dual-WAN no la mueva. Sin esto, un failover
-   deja al NVR sin cámaras de forma intermitente, y el síntoma —caídas aleatorias— es de
-   los más caros de diagnosticar.
+5. *Solo en el estado actual:* **comprobar** —no fijar— la ruta hacia las cámaras.
    ```bash
-   # Sustituir <red-camaras>/24 e <iface-wan> por los reales (no van al repo)
-   sudo ip route add <red-camaras>/24 dev <iface-wan>   # probar en caliente
-   ip route get <ip-cam-1>                              # debe salir por esa interfaz
+   ip route get <ip-cam-1>    # debe salir por la interfaz esperada
+   ip route show | grep <red-camaras>
    ```
-   Persistirlo después en la configuración de red del appliance, no solo en caliente.
+   Si aparece como `proto kernel scope link`, es una **ruta conectada**: la interfaz tiene
+   dirección en esa misma red y ninguna regla adicional hace falta, porque una ruta
+   conectada siempre gana sobre la ruta por defecto y el balanceo dual-WAN no la toca.
+   Solo si la red de las cámaras estuviera a un salto de distancia habría que fijar una
+   regla de política.
 6. Verificación desde el appliance:
    ```bash
    source .env   # trae FRIGATE_CAM1_IP y las credenciales, sin teclearlas

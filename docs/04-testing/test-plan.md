@@ -169,7 +169,7 @@ la última columna. Un caso sin evidencia **no cuenta como aprobado**.
 | T-18 | RNF03 | Tras T-16 (exportar un clip largo): `docker exec frigate df -h /tmp/cache` | El `tmpfs` se drena tras el export y no queda ocupado | |
 | T-19 | ADR-0006 | Lanzar la tarea del NAS; luego **restaurar** un archivo cualquiera desde el NAS y reproducirlo | El respaldo completa, y el archivo restaurado se reproduce. Un respaldo nunca restaurado no es un respaldo | |
 | T-20 | ADR-0006 | Apagar el NAS y dejar el NVR 30 min | Grabación, vivo y eventos siguen sin inmutarse: el appliance no monta nada del NAS | |
-| T-21 | ADR-0007 | `ip route get <ip-cam>` antes y después de forzar un failover dual-WAN | La ruta a las cámaras no cambia de interfaz: la regla de política la fija | |
+| T-21 | ADR-0007 | `ip route get <ip-cam>` antes y después de forzar un failover dual-WAN | La ruta no cambia de interfaz. Es una ruta conectada, así que se espera que pase: el caso existe para **confirmar la premisa**, no para validar una regla | |
 | T-22 | ADR-0007 | Dejar el NVR 24 h y revisar reconexiones RTSP en el log | Las cámaras van por Wi-Fi y por WAN: contar las caídas para saber si el watchdog basta o hay que ajustar `frigate/available` | |
 
 ## Pruebas de seguridad (equivalente DAST) — los abusos del PRD como casos
