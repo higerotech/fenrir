@@ -63,7 +63,29 @@ gitGraph
 
 Una rama por gate, vida corta, merge a `main` al aprobar el gate y tag SemVer que coincide
 con el corte del `CHANGELOG`. Los cambios entre gates que añadan requisitos o controles
-también cortan su MINOR: por eso `v0.3.0` y `v0.4.0` no pertenecen a ningún gate. Cuando exista historial real, este grafo se **deriva**, no se
+también cortan su MINOR: por eso `v0.3.0` y `v0.4.0` no pertenecen a ningún gate. ### Cómo se corta una versión
+
+Los cambios de diseño van por rama y PR. **El corte de versión no**: es mecánico —mover
+`[Unreleased]` a su número, ajustar los enlaces de comparación y los MINOR previstos de los
+gates— y no toca ninguna decisión. Hacerlo por PR costaba una ronda de revisión para algo que
+no tiene nada que revisar.
+
+```bash
+# 1. Editar el CHANGELOG y los "previsto" de los gates, directamente sobre main
+# 2. Commit y push a main
+# 3. Tag anotado en el mismo paso, apuntando al commit del corte
+git tag -a vX.Y.Z -m "..."  &&  git push origin vX.Y.Z
+```
+
+Dos reglas que se ganaron su sitio con los hechos:
+
+- **Los gates reservan *el siguiente* MINOR, no un número fijo.** `0.3.0` y `0.4.0` se
+  consumieron con cambios entre gates. Fijar el número por adelantado asumía que entre gates
+  no se publica nada, y ya falló dos veces.
+- **El tag apunta al commit del corte, no a `main` sin más.** Un tag publicado no se mueve,
+  así que no se clava sobre un commit cuyo CHANGELOG todavía dice `[Unreleased]`.
+
+Cuando exista historial real, este grafo se **deriva**, no se
 mantiene a mano:
 
 ```bash
