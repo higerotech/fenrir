@@ -1,0 +1,89 @@
+# Reglas de host — ADR-0008 y RNF03. Dependen de node_exporter (job `jord`).
+#
+# Estas son las que cierran las dos verificaciones que hasta ahora eran manuales: si el NVR
+# degrada el enrutamiento (RNF01, condición de revocación de ADR-0002) y si queda memoria
+# disponible en el host (RNF03).
+groups:
+  - name: host
+    rules:
+
+      # --- RNF03: memoria del host ------------------------------------------------------
+      - alert: HostMemoriaBaja
+        expr: node_memory_MemAvailable_bytes < 4 * 1024 * 1024 * 1024
+        for: 15m
+        labels: { severity: warning, servicio: host }
+        annotations:
+          summary: "MemAvailable por debajo del suelo de RNF03 ({{ $value | humanize1024 }}B)"
+          descripcion: >-
+            RNF03 fija ≥4 GB en régimen normal. El techo de Frigate son 3 GB, así que en el
+            peor caso teórico este suelo y ese techo no caben a la vez: si esta alerta salta
+            de forma sostenida hay que decidir cuál de los dos números se mueve, con datos.
+          runbook: "docs/06-monitoring/observability.md — I-6"
+
+      - alert: HostMemoriaCritica
+        expr: node_memory_MemAvailable_bytes < 1.5 * 1024 * 1024 * 1024
+        for: 5m
+        labels: { severity: critical, servicio: host }
+        annotations:
+          summary: "Memoria del host crítica ({{ $value | humanize1024 }}B disponibles)"
+          descripcion: >-
+            Territorio del OOM killer. `mem_limit` debería hacer que la víctima sea Frigate y
+            no dnsmasq (T7), pero eso acota el daño, no lo evita.
+          runbook: "docs/06-monitoring/observability.md — I-6"
+
+      - alert: HostSwapEnUso
+        expr: (node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes) > 256 * 1024 * 1024
+        for: 15m
+        labels: { severity: warning, servicio: host }
+        annotations:
+          summary: "El host está usando {{ $value | humanize1024 }}B de swap"
+          descripcion: >-
+            RNF03 pide swap en 0 en régimen normal. Swapear castiga al mismo disco que está
+            grabando, así que el síntoma se realimenta. Aviso honesto: node_exporter da swap
+            del host, no atribuido al NVR; para atribuirlo hay que mirar `docker stats`.
+
+      # --- RNF01 / ADR-0002: ¿el NVR degrada el enrutamiento? ---------------------------
+      - alert: HostCpuSostenida
+        expr: 100 * (1 - avg without(cpu) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) > 50
+        for: 15m
+        labels: { severity: warning, servicio: host }
+        annotations:
+          summary: "CPU del host al {{ $value | printf \"%.0f\" }} % sostenido"
+          descripcion: >-
+            Es la condición de revocación de ADR-0002. Antes de tocar nada, atribuir: comparar
+            con `frigate_cpu_usage_percent` para saber si el culpable es el NVR o el resto de
+            la plataforma. Palancas en orden en el runbook I-3.
+          runbook: "docs/06-monitoring/observability.md — I-3"
+
+      - alert: HostCargaAlta
+        expr: node_load15 > 1.5 * count without(cpu,mode) (node_cpu_seconds_total{mode="idle"})
+        for: 15m
+        labels: { severity: warning, servicio: host }
+        annotations:
+          summary: "Carga a 15 min de {{ $value | printf \"%.2f\" }} sobre {{ with query \"count without(cpu,mode)(node_cpu_seconds_total{mode=\\\"idle\\\"})\" }}{{ . | first | value }}{{ end }} hilos"
+
+      # --- T1: la raíz, que es el volumen que comparte todo el host ---------------------
+      - alert: RaizHostAlta
+        expr: >-
+          node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+          / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} < 0.15
+        for: 15m
+        labels: { severity: warning, servicio: host }
+        annotations:
+          summary: "Raíz del host por debajo del 15 % libre"
+          descripcion: >-
+            Complementa a `DiscoNvrAlto`, que mira desde dentro de Frigate. Como no hay volumen
+            dedicado, ambas observan el mismo sistema de ficheros desde dos sitios: **si
+            discrepan, algo está montado distinto de lo que la documentación asume**. Esta ve
+            además a los demás consumidores, como la base de series temporales del host.
+          runbook: "docs/06-monitoring/observability.md — I-2"
+
+      - alert: RaizHostCritica
+        expr: >-
+          node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+          / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} < 0.08
+        for: 5m
+        labels: { severity: critical, servicio: host }
+        annotations:
+          summary: "Raíz del host por debajo del 8 % libre — riesgo para el enrutamiento"
+          runbook: "docs/06-monitoring/observability.md — I-2"

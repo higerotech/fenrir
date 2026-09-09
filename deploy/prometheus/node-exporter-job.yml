@@ -1,0 +1,13 @@
+# Job de scrape de node_exporter — se instala en el `prometheus.yml` de la plataforma.
+#
+# `host.docker.internal` porque Prometheus corre en una red bridge y node_exporter en la red
+# del host: es el mismo mecanismo que ya usa el job del blackbox exporter.
+#
+# Nombre: el resto de jobs usa nomenclatura nórdica (mimir, gjallarhorn, huginn_muninn,
+# sleipnir). `jord` — Jörð, la tierra sobre la que todo se sostiene — encaja para las
+# constantes vitales del propio host. Renombrar si se prefiere otro; hay que ajustar las
+# reglas en consecuencia.
+- job_name: jord
+  scrape_interval: 15s
+  static_configs:
+    - targets: ["host.docker.internal:9100"]

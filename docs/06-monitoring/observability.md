@@ -22,12 +22,15 @@ y Alertmanager** (ADR-0008). Así que casi todos los SLIs salen de una sola fuen
 instrumentación propia y sin desplegar nada nuevo: la especificación del job y de las reglas
 está en `deploy/prometheus/`, y se instala en el proyecto que gobierna Prometheus.
 
-> **Lo que falta, y conviene no disimularlo.** No hay `node_exporter` ni `cadvisor` en el
-> host, así que **no hay métricas de host**. Frigate solo expone su propio proceso. Las dos
-> preguntas que de verdad importan —¿la CPU sostenida degrada el enrutamiento (RNF01,
-> ADR-0002)? ¿queda `MemAvailable` por encima de 4 GB (RNF03)?— son de host, y hasta que se
-> despliegue un exportador siguen siendo comprobaciones manuales con `htop` y `free`. No se
-> escriben alertas que no puedan dispararse.
+Las métricas de host las aporta `node_exporter` (`deploy/prometheus/node-exporter.compose.yml`),
+desplegado para este proyecto porque las dos preguntas que deciden si se sostiene —¿la CPU
+sostenida degrada el enrutamiento (RNF01, ADR-0002)? ¿queda `MemAvailable` sobre 4 GB
+(RNF03)?— **no se pueden responder desde Frigate**, que solo expone su propio proceso.
+
+> Lo que sigue sin fuente de métrica: la **frescura del respaldo** al NAS (ADR-0006), cuyo
+> `.last-success` vive en el NAS. Se resolvería con el mismo patrón de textfile servido por
+> HTTP que el host ya usa para el job de throughput. No se escriben alertas que no puedan
+> dispararse.
 
 > **Advertencia de honestidad.** Los umbrales de abajo son los del charter, decididos antes
 > de tener datos. Están marcados como *provisionales* hasta el baseline de 72 h del Gate 4;
@@ -39,12 +42,13 @@ está en `deploy/prometheus/`, y se instala en el proyecto que gobierna Promethe
 | SLI | Fuente | SLO | Origen | Estado |
 |---|---|---|---|---|
 | Latencia de vista en vivo | Cronometrado (T-06/T-07) | ≤2 s en LAN y por WireGuard | Charter, RF04 | Fijo |
-| CPU sostenida del NVR | `frigate_cpu_usage_percent` + `docker stats` | <50 % sostenido | Charter, RNF01, T2 | **Provisional** |
+| CPU sostenida del NVR | `frigate_cpu_usage_percent` | <50 % sostenido | Charter, RNF01, T2 | **Provisional** |
+| CPU sostenida del host | `rate(node_cpu_seconds_total{mode="idle"})` | <50 % sostenido. Es **esta** la que responde a ADR-0002: la pregunta era si el NVR degrada al router, no cuánto consume el NVR | ADR-0002 | **Provisional** |
 | Frames descartados | `frigate_skipped_fps` | = 0 | T2 (canario del detector) | Fijo |
 | Ocupación del media store | `frigate_storage_used_bytes / frigate_storage_total_bytes` | <90 % | Charter, T1 | Fijo |
 | Memoria del contenedor Frigate | `frigate_mem_usage_percent` + `docker stats` | <80 % de su `mem_limit` de 3 GB | RNF03, T7 | Fijo |
-| Memoria disponible del host | `MemAvailable` de `/proc/meminfo` | ≥4 GB con el NVR en marcha | RNF03, T7 | **Provisional** |
-| Swap atribuible al NVR | `/proc/meminfo` + `docker stats` | 0 en régimen normal | RNF03 | Fijo |
+| Memoria disponible del host | `node_memory_MemAvailable_bytes` | ≥4 GB con el NVR en marcha | RNF03, T7 | **Provisional** |
+| Swap del host | `node_memory_Swap{Total,Free}_bytes` | 0 en régimen normal. **Aviso**: es swap del host, no atribuido al NVR; atribuir exige `docker stats` | RNF03 | Fijo |
 | Disponibilidad por cámara | `frigate_camera_fps` > 0 y `frigate/available` | ≥99 % mensual | RF01 | **Provisional** |
 | Retraso detección → MQTT | Marca de tiempo del evento contra la recepción | <3 s | PRD, RF05 | Fijo |
 | Coste de inferencia | `frigate_detector_inference_speed_seconds` | Sin tendencia creciente | ADR-0001 (deuda del detector CPU) | Observar |
@@ -104,8 +108,8 @@ solo se anota **dónde se engancha la telemetría** (regla anti-ruido: un objeto
 | Contenedor `frigate` | Eventos y disponibilidad | MQTT `frigate/#` en el broker existente | Igual que los eventos |
 | Contenedor `frigate` | Logins fallidos de la UI (A09) | `docker logs frigate` | 30 MB por rotación (3×10 MB) |
 | Host / appliance | Salud del enrutamiento | **Ya cubierto**: los jobs de blackbox ICMP contra ambas WAN existían antes que este proyecto | La del TSDB |
-| Host / appliance | CPU y carga del host | `htop` — **manual hasta que haya `node_exporter`** | — |
-| Host / appliance | Memoria disponible y swap | `/proc/meminfo`, `docker stats` — **manual hasta que haya `node_exporter`** | — |
+| Host / appliance | CPU, carga, memoria, swap y sistemas de ficheros | `node_exporter` en red de host, raspado por Prometheus | La del TSDB |
+| `/srv/frigate` | Ocupación, desde dos vantajes | `frigate_storage_*` y `node_filesystem_*` sobre `/`. **Si discrepan, algo está montado distinto de lo que la documentación asume** | La del TSDB |
 | `/srv/frigate` | Ocupación | Métrica de storage; `df -h` como respaldo | Manual |
 
 **Cómo se alcanza el 5000 sin publicarlo.** Frigate se une a la red Docker de la plataforma
@@ -125,7 +129,11 @@ T6 pasa de "mitigado no publicando el puerto" a "no hay superficie que mitigar".
 | Memoria del host baja | `MemAvailable` <1,5 GB en 3 muestras | Alta | RNF03, T7 | Runbook I-6 |
 | Frigate cerca de su límite | `frigate_mem_usage_percent` >80 % en 3 muestras, o crecimiento monótono en 24 h | Media | RNF03, T7 | Runbook I-6 |
 | Contenedor reiniciando | Uptime se reinicia más de 3 veces en 1 h. **Con `mem_limit`, un reinicio repetido suele ser OOM del contenedor**: confirmar con `docker inspect frigate --format '{{.State.OOMKilled}}'` | Alta | A10, T7 | Runbook I-4 |
-| Respaldo obsoleto | Sin rsync completado en 36 h | Media | ADR-0006 | Runbook I-7 |
+| Memoria del host baja / crítica | `MemAvailable` <4 GB (15 min) / <1,5 GB (5 min) | Media / **Crítica** | RNF03, T7 | Runbook I-6 |
+| Swap en uso | >256 MB durante 15 min | Media | RNF03 | Runbook I-6 |
+| CPU del host sostenida | >50 % durante 15 min | Media | RNF01, ADR-0002 | Runbook I-3 |
+| Raíz del host | <15 % libre (15 min) / <8 % libre (5 min) | Media / **Crítica** | T1 | Runbook I-2 |
+| Respaldo obsoleto | Sin rsync completado en 36 h. **Sin fuente de métrica todavía** | Media | ADR-0006 | Runbook I-7 |
 | Enrutamiento degradado | Pérdida o latencia anómala hacia la WAN | **Crítica** | ADR-0002 | Runbook I-5 |
 
 Las reglas viven en `deploy/prometheus/frigate-rules.yml` y se enrutan por el Alertmanager
@@ -176,7 +184,10 @@ la purga funciona y aun así se llena, el dimensionado quedó corto: bajar la re
 continua o mover el media store a un disco mayor. **No borrar a mano** salvo emergencia: la
 base de datos quedaría desincronizada de los archivos.
 
-**I-3 · Detector saturado o CPU alta.** Palancas en este orden: (1) `detect.fps` de 5 a 4;
+**I-3 · Detector saturado o CPU alta.** Primero **atribuir**, que ahora se puede: comparar la
+CPU del host (`node_cpu_seconds_total`) con la de Frigate (`frigate_cpu_usage_percent`). Si
+el host está alto y Frigate no, el NVR es la víctima y no la causa, y tocar `detect.fps` no
+arregla nada. Confirmado que es el NVR, palancas en este orden: (1) `detect.fps` de 5 a 4;
 (2) `cpuset: "0,1"` en el compose para dejarle núcleos libres al enrutamiento; (3) reducir
 objetos rastreados (quitar `cat`/`dog`, que sirven de poco y cuestan igual); (4) si nada
 basta, reabrir ADR-0002 hacia un mini-PC dedicado. Registrar qué palanca se usó: es la

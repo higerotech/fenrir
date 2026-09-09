@@ -1,0 +1,36 @@
+# node_exporter — fragmento para el compose del proyecto de la plataforma, NO para el del NVR.
+#
+# Existe porque sin él no hay métricas de host, y las dos preguntas que deciden ADR-0002 y
+# RNF03 son de host: ¿la CPU sostenida del NVR degrada el enrutamiento? ¿queda MemAvailable
+# por encima de 4 GB? Frigate solo expone su propio proceso y no puede contestarlas.
+#
+# Sigue el patrón que ya usa el blackbox exporter del host: red del host, sin puertos
+# publicados, y Prometheus lo alcanza por `host.docker.internal`.
+services:
+  node-exporter:
+    image: prom/node-exporter:v1.10.2      # pinear; nunca latest (ADR-0003)
+    container_name: <prefijo>-node-exporter
+    restart: unless-stopped
+    mem_limit: 64m                          # mismo techo que el blackbox exporter
+    # Red del host para que las métricas de red e interfaces sean las reales y no las del
+    # namespace del contenedor. Ojo con la diferencia respecto a T5: un contenedor en red de
+    # host bindea directamente, así que su tráfico SÍ atraviesa la cadena `input` de nftables
+    # y el default-drop de las WAN lo protege. El problema de T5 era otro: los puertos
+    # PUBLICADOS por Docker entran por DNAT y se saltan esa cadena.
+    network_mode: host
+    pid: host
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro,rslave
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      # Sin esto, cada capa de overlay2 y cada bind de contenedor aparece como un sistema de
+      # ficheros propio: con ~15 contenedores el ruido tapa lo único que interesa, que es la raíz.
+      - '--collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker/.+|rootfs/(dev|proc|sys|run|var/lib/docker/.+))($$|/)'
+      - '--collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|mqueue|nsfs|overlay|proc|procfs|pstore|securityfs|selinuxfs|squashfs|sysfs|tracefs)$$'
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
