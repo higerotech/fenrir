@@ -11,6 +11,32 @@ eso los gates reservan *el siguiente* MINOR y no un número fijo — ver `.ai-dl
 
 ## [Unreleased]
 
+### Ejecutado en el host (2026-09-09 13:29)
+
+Migración de nombres y **salida del SAFE MODE** en un solo despliegue, siguiendo el anexo
+del runbook. `/opt/nvr` → `/opt/fenrir`, `/srv/frigate` → `/srv/fenrir`, contenedor
+`frigate` → `fenrir-frigate`.
+
+- **La configuración está en vigor por primera vez.** No «no hay errores», sino
+  comprobado contra `/api/config`: continuo 5 días, alertas 14, detecciones 7,
+  `preset-record-generic` (sin audio) y `detect.enabled` a `True` en ambas cámaras a 5 fps.
+  Las tareas de mantenimiento y limpieza ya no aparecen como *skipped*: **la retención de
+  ADR-0004, y con ella el control de T1, existe desde ahora.**
+- **El movimiento de datos fue transparente**, como predecía la comprobación previa: 5,0 GB
+  y 5.711 segmentos intactos, 86 eventos, y las 5.711 filas de `recordings.path` siguen con
+  el único prefijo `/media/frigate/recordings` — ruta interna del contenedor, que el
+  renombrado del origen en el host no toca.
+- MQTT reconectado: `frigate/available online` y `detect/state ON` en ambas cámaras.
+- **La CPU sigue fuera de presupuesto**: 207 % de 4 hilos ≈ 52 %, contra el `<50 %` de
+  RNF01. Ahora sí es una medida válida — con el mantenimiento activo y la configuración
+  real—, así que deja de ser un dato sospechoso y pasa a ser una entrada para ADR-0002.
+  Falta la medición sostenida de 15 min para T-11/T-12.
+
+**Sin desplegar todavía**: el job de scrape y las reglas de alerta. Se confirmó que el
+`prometheus.yml` del host **nunca llegó a incluirlos**, así que no hay observabilidad del
+NVR: ninguna de las 6 alertas puede dispararse hoy.
+
+
 ### Corregido
 
 Los tres primeros errores del arranque real, en el orden en que Frigate 0.17.2 los fue
