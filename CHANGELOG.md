@@ -11,6 +11,40 @@ eso los gates reservan *el siguiente* MINOR y no un número fijo — ver `.ai-dl
 
 ## [Unreleased]
 
+### Cambiado
+
+- **Retención continua de 3 a 5 días** (ADR-0004 v1.1). La v1.0 fijó 3 días condicionada a
+  ≥200 GB libres, sin conocer la capacidad real; medida el 2026-09-08: **422 GB**, holgura
+  ×2,1. Con 5 días la ocupación queda en el 66 % del watermark del 90 %, que es el techo
+  operativo de T1. No se sube a 7 días (89 %) porque el crecimiento real aún no está medido
+  y porque retener menos video Confidencial sin cifrar sigue siendo un control, no una
+  limitación que haya que superar porque ahora cabe.
+- El riesgo del charter *"fallo del HDD único"* pasa de asumido a **mitigado parcialmente**.
+
+### Añadido
+
+- **ADR-0006 — respaldo al NAS iniciado por el NAS (pull), no por el appliance.** La
+  propuesta original era rotar grabaciones antiguas al NAS por NFS; **no es implementable**:
+  Frigate no tiene almacenamiento por niveles, su retención purga en vez de migrar, y las
+  grabaciones están indexadas en `frigate.db` con sus rutas, así que mover archivos deja el
+  índice apuntando a rutas muertas. Lo que sí cabe es un respaldo, que es otra cosa y no
+  amplía la retención.
+- La dirección se invierte respecto a lo propuesto: el NAS tira por `rsync` sobre SSH y el
+  appliance **no monta nada**. Así una caída del NAS es invisible para el NVR, y el video
+  viaja cifrado en vez de por una export NFS con `AUTH_SYS`, que no autentica de verdad.
+  El NFS-push queda documentado como plan B si el NAS no puede iniciar tareas.
+- Se respaldan `config/` (con `frigate.db`), alertas, snapshots y exportados. **No el
+  continuo**: 43 GB/día replicados reintroducen el I/O de red que la ADR descarta.
+- **T8** en el threat model: el NAS es una segunda ubicación de video Confidencial y hereda
+  su clasificación. DREAD 4,8.
+- `deploy/backup/`: `snapshot-db.sh` (appliance) y `pull-from-appliance.sh` (NAS), ambos por
+  cron, con su README. La base **no se copia con rsync directamente**: sobre una SQLite viva
+  eso puede dar un fichero roto, así que un cron previo genera un snapshot consistente con
+  `sqlite3 .backup`, validado con `integrity_check` y publicado con un `mv` atómico.
+- Paso 8bis del runbook (cuenta `nvrbackup` restringida por `command=`), casos T-19
+  (restauración real), T-20 (el NVR sobrevive al NAS apagado) y S-10 (la cuenta de respaldo
+  no puede escribir), SLI de frescura del respaldo y runbook de incidente I-7.
+
 ## [0.3.0] - 2026-09-08
 
 **Documentación de las seis fases completa y presupuesto de recursos cerrado.** No cierra

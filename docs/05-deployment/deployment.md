@@ -49,7 +49,8 @@ C4Deployment
 ## Paso 0 — Prerrequisitos y decisiones (HITL antes de ejecutar)
 - [ ] IPs definitivas de las cámaras, fijadas por reserva DHCP. Van al `.env` como
       `FRIGATE_CAM1_IP` / `FRIGATE_CAM2_IP`: **no se escriben en el repo** (§Anonimización).
-- [ ] ≥200 GB libres en el HDD para `/srv/frigate/media` (2 cámaras × ~2 Mbps ≈ 43 GB/día ambas en continuo; 3 días ≈ 130 GB + margen).
+- [x] Capacidad medida 2026-09-08: **422 GB libres**. Con 5 días de continuo (~216 GB) más
+      alertas, la ocupación queda en el 66 % del watermark del 90 %. ADR-0004 v1.1.
 - [ ] Contraseñas listas: cuenta de cámara Tapo (una por cámara), usuario MQTT de Frigate y de Node-RED.
 - [ ] Confirmar que el micrófono de las cámaras quedará deshabilitado (FL §934.03).
 - [ ] IP LAN del appliance (`FRIGATE_LAN_IP`): es el bind de los puertos publicados **y**
@@ -174,6 +175,33 @@ router). Intención de reglas, a integrar en el ruleset del proyecto de red:
    permitir solo cámara ↔ appliance en 554/2020.
 3. Verificación externa: desde fuera (datos móviles), `nmap -Pn IP-WAN -p 8971,8554,8555,1883`
    → todo filtrado.
+
+## Paso 8bis — Respaldo al NAS (ADR-0006)
+
+El appliance **no monta nada**: la tarea la inicia el NAS. Los dos scripts y sus dos crons
+están en `deploy/backup/` con su propio README; aquí solo el acceso desde el appliance.
+
+**La base de datos se respalda aparte y por una razón**: `rsync` sobre una SQLite viva puede
+dar un fichero roto, y una copia rota parece un respaldo hasta el día que la necesitas. Un
+cron en el appliance ejecuta `snapshot-db.sh` (usa `sqlite3 .backup`, valida con
+`integrity_check` y publica con un `mv` atómico) poco antes de que el NAS tire.
+
+```bash
+sudo useradd -r -m -s /bin/bash nvrbackup
+sudo install -d -m 700 -o nvrbackup -g nvrbackup /home/nvrbackup/.ssh
+# Pegar la clave publica del NAS restringida a rsync de solo lectura:
+#   command="rrsync -ro /srv/frigate",no-agent-forwarding,no-port-forwarding,\n#   no-pty,no-X11-forwarding ssh-ed25519 AAAA...
+sudo -u nvrbackup nano /home/nvrbackup/.ssh/authorized_keys
+sudo chmod 600 /home/nvrbackup/.ssh/authorized_keys
+# Lectura de la media sin poder escribir ni borrar:
+sudo setfacl -R -m u:nvrbackup:rX /srv/frigate/config /srv/frigate/media/frigate/clips
+```
+
+En el NAS, tarea programada diaria que tire de `config/`, `clips/` y los exportados. **No
+del continuo**: son 43 GB/día y replicarlo reintroduce el I/O de red que ADR-0006 descarta.
+
+Verificar de verdad, no suponer (T-19): restaurar un archivo cualquiera desde el NAS y
+reproducirlo. Un respaldo que nunca se ha restaurado no es un respaldo.
 
 ## Paso 9 — Pipeline de cambio y rollback
 
