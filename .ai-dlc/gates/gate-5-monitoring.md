@@ -15,4 +15,4 @@
 - [ ] `timeline` de hitos del ciclo y hallazgos que abren el ciclo 2 (bucle 06 → 01)
 - [ ] **HITL**: Jeremi valida los umbrales de alerta tras 2 semanas de datos reales
 
-Al aprobar: cortar → `1.1.0` y abrir ciclo 2 (acelerador, VLAN de cámaras, reemplazo de Blink).
+Al aprobar: cortar el siguiente MINOR tras 1.0.0 y abrir ciclo 2 (acelerador, VLAN de cámaras, reemplazo de Blink).
