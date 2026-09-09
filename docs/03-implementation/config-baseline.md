@@ -63,19 +63,32 @@ gitGraph
 
 Una rama por gate, vida corta, merge a `main` al aprobar el gate y tag SemVer que coincide
 con el corte del `CHANGELOG`. Los cambios entre gates que añadan requisitos o controles
-también cortan su MINOR: por eso `v0.3.0` y `v0.4.0` no pertenecen a ningún gate. ### Cómo se corta una versión
+también cortan su MINOR: por eso `v0.3.0` y `v0.4.0` no pertenecen a ningún gate.
+
+### Cómo se corta una versión
 
 Los cambios de diseño van por rama y PR. **El corte de versión no**: es mecánico —mover
 `[Unreleased]` a su número, ajustar los enlaces de comparación y los MINOR previstos de los
 gates— y no toca ninguna decisión. Hacerlo por PR costaba una ronda de revisión para algo que
 no tiene nada que revisar.
 
+El ruleset `Protect-MAIN` del repositorio exige que todo cambio entre por PR, así que el
+push directo no es posible — y no hay que desactivarlo para conseguir el objetivo. Como el
+ruleset **no exige aprobaciones** (`required_approving_review_count: 0`), la PR se crea y se
+mergea en el mismo paso, sin intervención de nadie:
+
 ```bash
-# 1. Editar el CHANGELOG y los "previsto" de los gates, directamente sobre main
-# 2. Commit y push a main
-# 3. Tag anotado en el mismo paso, apuntando al commit del corte
-git tag -a vX.Y.Z -m "..."  &&  git push origin vX.Y.Z
+git checkout -b release/vX.Y.Z
+# editar CHANGELOG y los "previsto" de los gates
+git commit -am "release: corta X.Y.Z"
+git push -u origin release/vX.Y.Z
+gh pr create --base main --fill && gh pr merge --merge --delete-branch
+git checkout main && git pull --ff-only
+git tag -a vX.Y.Z -m "..." && git push origin vX.Y.Z
 ```
+
+Se conserva la protección de `main` y se elimina la espera. Si alguna vez el ruleset pasa a
+exigir aprobaciones, este procedimiento deja de funcionar solo y habrá que revisarlo.
 
 Dos reglas que se ganaron su sitio con los hechos:
 
