@@ -11,6 +11,49 @@ eso los gates reservan *el siguiente* MINOR y no un número fijo — ver `.ai-dl
 
 ## [Unreleased]
 
+### Observabilidad instalada (2026-09-09 18:21)
+
+El job y las 6 alertas del NVR ya viven en el Prometheus del host
+(`higerotech/yggdrasil#36`), cargados en caliente con `SIGHUP`, sin reiniciar nada. Hasta
+hoy existían como especificación y **ninguna podía dispararse**.
+
+Comprobado antes de escribir el job, no después: `fenrir:5000` ya resolvía desde Mimir por
+`yggdrasil_heimdall`; el endpoint manda `Content-Type: text/plain; version=0.0.4`, así que
+no necesita el `fallback_scrape_protocol` que sí hizo falta para `sleipnir`; y las cinco
+métricas que usan las reglas existen. `up{job="fenrir"} = 1`, scrape de 12 ms.
+
+- **`DetectorSaturado` entró en `pending` en la primera evaluación.** No es un falso
+  positivo: `frigate_skipped_fps` marca 0,2 en `cam_01` ahora mismo y **picos de 2,2 en los
+  últimos 15 minutos**. Es el canario de T2 — el detector por CPU no da abasto de forma
+  intermitente—, y es la señal temprana de la condición de revocación de ADR-0002, que
+  llega acompañada del 52 % de CPU sostenida sobre el `<50 %` de RNF01. La alerta se ganó el
+  sueldo el mismo día que se instaló. Decidir entre bajar `detect.fps` a 4 o acotar con
+  `cpuset` es HITL de Gate 1; no se toca todavía.
+
+### Corregido
+
+- **Las alertas de disco medían también la RAM.** `frigate_storage_*` publica **cuatro**
+  series y dos no son disco: `/tmp/cache` (tmpfs, 954 MB) y `/dev/shm` (128 MB). Sin filtro,
+  un `/dev/shm` al 90 % —115 MB, nada— anunciaba «Almacenamiento del NVR al 90 %» y mandaba
+  al runbook I-2, que trata del disco, mientras el problema real sería de memoria (I-6, T7).
+  Añadido `storage=~"/media/frigate/.*"` a las dos. Medido en el propio Prometheus:
+  recordings 7,11 %, clips 7,11 %, tmpfs 4,05 %, shm 10,47 %. **Este defecto no se ve
+  leyendo el YAML**: hace falta ejecutar la expresión contra datos reales.
+- **Las anotaciones pasan de `summary` a `resumen`.** El flujo de Nornas hace
+  `aviso(titulo, an.resumen)` para toda alerta sin etiqueta `wan` — las 6 nuestras. Con
+  `summary` la notificación habría llegado con el cuerpo **vacío**: ni falla ni avisa, que
+  es el peor modo. Encontrado leyendo el flujo de la plataforma antes de instalar.
+  Arista conocida que no se toca: el título del aviso dirá `Heimdall: FenrirCaido`, porque
+  el prefijo está fijo en esa función del flujo.
+
+### Sigue sin cubrir
+
+- **Las 7 alertas de host de `host-rules.yml`**, que necesitan `node_exporter` y siguen sin
+  fuente. Son justo las dos preguntas que deciden ADR-0002 y RNF03: si la CPU del NVR
+  degrada el enrutamiento, y si queda `MemAvailable` sobre 4 GB. Sin ellas, el 52 % de CPU
+  medido a mano no tiene historial con el que compararse.
+
+
 ### Ejecutado en el host (2026-09-09 13:29)
 
 Migración de nombres y **salida del SAFE MODE** en un solo despliegue, siguiendo el anexo
