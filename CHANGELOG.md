@@ -59,13 +59,29 @@ eso los gates reservan *el siguiente* MINOR y no un número fijo — ver `.ai-dl
   aviso destacado de que `mosquitto_passwd -c` **borra el fichero entero** y dejaría sin
   acceso a los clientes que ya había.
 
+- **`node_exporter` para métricas de host.** Sin él, las dos preguntas que deciden si el
+  proyecto se sostiene —¿la CPU sostenida degrada el enrutamiento (RNF01, condición de
+  revocación de ADR-0002)? ¿queda `MemAvailable` sobre 4 GB (RNF03)?— no se podían responder:
+  Frigate solo expone su propio proceso. Se añaden el servicio, su job y `host-rules.yml` con
+  7 alertas (memoria, swap, CPU, carga y raíz del host). Sigue el patrón del blackbox exporter
+  que ya corría en el host: red de host, sin puertos publicados, alcanzado por
+  `host.docker.internal`.
+  - **Las 13 reglas están validadas con `promtool` contra el propio Prometheus del host**, no
+    solo comprobadas como YAML.
+  - Redundancia deliberada en el disco: `DiscoNvrAlto` (desde Frigate) y `RaizHostAlta` (desde
+    node_exporter) miran el mismo sistema de ficheros desde dos vantajes, porque no hay volumen
+    dedicado. **Si discrepan, algo está montado distinto de lo que la documentación asume** —
+    T-27 lo comprueba.
+  - El runbook I-3 gana un primer paso que antes no era posible: **atribuir**. Si la CPU del
+    host sube y la de Frigate no, el NVR es la víctima y no la causa, y tocar `detect.fps` no
+    arregla nada.
+
 ### Hueco conocido, sin cerrar
 
-- **No hay `node_exporter` ni `cadvisor` en el host, así que no hay métricas de host.**
-  Frigate solo expone su propio proceso. Las dos preguntas que de verdad importan —¿la CPU
-  sostenida degrada el enrutamiento (RNF01, ADR-0002)? ¿queda `MemAvailable` por encima de
-  4 GB (RNF03)?— son de host, y siguen siendo comprobaciones manuales. No se escriben
-  alertas que no puedan dispararse.
+- **Frescura del respaldo al NAS** (ADR-0006): el `.last-success` vive en el NAS y no hay
+  fuente de métrica todavía. Se resolvería con el mismo patrón de textfile servido por HTTP
+  que el host ya usa para el job de throughput. No se escriben alertas que no puedan
+  dispararse.
 
 - **ADR-0007 — cámaras temporalmente fuera del trust boundary LAN.** Ambas C310 están en el
   Wi-Fi del lado WAN mientras se adquiere el equipamiento Wi-Fi definitivo. Se documenta como

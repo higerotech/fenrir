@@ -159,17 +159,19 @@ la última columna. Un caso sin evidencia **no cuenta como aprobado**.
 | T-08 | RF05 | `mosquitto_sub -u nodered -t 'frigate/#' -v` mientras se dispara T-04 | Llega `frigate/events` con el objeto, retraso <3 s | |
 | T-09 | RF05 | Detener el contenedor frigate con el `sub` abierto | `frigate/available` pasa a `offline` por LWT | |
 | T-10 | RNF02 | `sudo intel_gpu_top` durante la grabación | Video engine >0 %: decodifica la iGPU, no la CPU | |
-| T-11 | RNF01 | 15 min con detección activa: `docker stats` y `htop` | CPU sostenida del proyecto <50 % | |
+| T-11 | RNF01 | 15 min con detección activa. Consultar en Prometheus la CPU **del host** y la de Frigate | CPU sostenida <50 %. Las dos series permiten **atribuir**: si el host sube y Frigate no, el NVR no es la causa | |
 | T-12 | RNF01 | Métrica `frigate_skipped_fps` durante T-11 | **0**. Si es >0 el detector no da abasto: canario de T2 | |
 | T-13 | SR06 | `ffprobe -show_streams -select_streams a` sobre un segmento nuevo | Cero streams de audio | |
 | T-14 | RF02 | Al día 6: buscar el segmento continuo más antiguo | Nada anterior a 5 días, el disco no crece sin límite | |
 | T-15 | RF02 | Al día 15: revisar alertas y snapshots antiguos | Nada anterior a 14 días | |
 | T-16 | — | Exportar un clip desde la UI | El archivo exportado existe y se reproduce | |
-| T-17 | RNF03 | Durante los 15 min de T-11: `docker stats --no-stream` y `free -h` | Frigate <80 % de sus 3 GB; `MemAvailable` del host ≥4 GB; swap del NVR en 0 | |
+| T-17 | RNF03 | Durante los 15 min de T-11: `frigate_mem_usage_percent` y `node_memory_MemAvailable_bytes` en Prometheus | Frigate <80 % de sus 3 GB; `MemAvailable` ≥4 GB; swap en 0. Con historial, no una foto | |
 | T-18 | RNF03 | Tras T-16 (exportar un clip largo): `docker exec frigate df -h /tmp/cache` | El `tmpfs` se drena tras el export y no queda ocupado | |
 | T-23 | ADR-0008 | Tras dar de alta al usuario `frigate`, comprobar que **los clientes MQTT que ya existían siguen conectando** | Ninguno pierde acceso. `mosquitto_passwd -c` habría borrado el fichero entero, y este caso es el que lo detecta |
 | T-24 | ADR-0008 | `docker exec frigate ffmpeg -hwaccel vaapi -hwaccel_device /dev/dri/renderD128 -i ... -f null -` y `intel_gpu_top` durante la grabación | Sin *permission denied*. Sin `group_add`, VAAPI falla y Frigate cae a CPU sin decirlo claramente |
 | T-25 | ADR-0008 | En Prometheus: `up{job="frigate"}` y una consulta a `frigate_camera_fps` | El target aparece *up* y las métricas llegan, **sin haber publicado el 5000** |
+| T-26 | ADR-0008 | `up{job="jord"}` y `node_memory_MemAvailable_bytes` | node_exporter responde y las métricas de host llegan |
+| T-27 | T1 | Comparar `frigate_storage_used_bytes/total` con `node_filesystem_avail_bytes{mountpoint="/"}` | **Deben coincidir**: no hay volumen dedicado, así que miran el mismo sistema de ficheros. Si discrepan, algo está montado distinto de lo que la documentación asume |
 | T-19 | ADR-0006 | Lanzar la tarea del NAS; luego **restaurar** un archivo cualquiera desde el NAS y reproducirlo | El respaldo completa, y el archivo restaurado se reproduce. Un respaldo nunca restaurado no es un respaldo | |
 | T-20 | ADR-0006 | Apagar el NAS y dejar el NVR 30 min | Grabación, vivo y eventos siguen sin inmutarse: el appliance no monta nada del NAS | |
 | T-21 | ADR-0007 | `ip route get <ip-cam>` antes y después de forzar un failover dual-WAN | La ruta no cambia de interfaz. Es una ruta conectada, así que se espera que pase: el caso existe para **confirmar la premisa**, no para validar una regla | |

@@ -69,12 +69,13 @@ superficie que mitigar", y el 1883 deja de estar expuesto en la LAN.
   eventos (seguirá grabando y sirviendo vivo). Y la observabilidad del NVR deja de ser
   autocontenida: el job vive en otro repositorio, así que un cambio aquí exige acordarse de
   allí. `deploy/prometheus/` existe precisamente para que la especificación no se pierda.
-- **Hueco que esta ADR no cierra:** no hay `node_exporter` ni `cadvisor` en el host, así que
-  **no hay métricas de host**. Frigate solo expone su propio proceso, y las preguntas que de
-  verdad importan —¿la CPU sostenida degrada el enrutamiento (RNF01, ADR-0002)? ¿queda
-  `MemAvailable` por encima de 4 GB (RNF03)?— son de host. Sin resolverlo, esas dos
-  verificaciones siguen siendo manuales con `htop` y `free`. Desplegar `node_exporter`
-  (~20-30 MB) lo cerraría y completaría el stack existente; es decisión del proyecto de la
-  plataforma, no de este.
+- **Hueco detectado y cerrado en la misma decisión:** el host no tenía `node_exporter` ni
+  `cadvisor`, así que no había métricas de host — y las preguntas que de verdad importan
+  (RNF01/ADR-0002 y RNF03) son de host, no de proceso. Se despliega `node_exporter` con la
+  especificación en `deploy/prometheus/`, siguiendo el patrón del blackbox exporter que ya
+  corría ahí. Queda pendiente una sola fuente: la frescura del respaldo al NAS (ADR-0006).
+- Intercambio consciente de `node_exporter`: monta la raíz del host en solo lectura, así que
+  un escape de ese contenedor tendría lectura del sistema de ficheros. Mitigado con solo
+  lectura, sin `privileged`, imagen pineada y límite de memoria.
 - Impacto en threat model: reduce T6 a superficie nula y elimina el 1883 de la LAN. No
   introduce amenazas nuevas: el broker y sus ACLs ya existían.
