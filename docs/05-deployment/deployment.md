@@ -87,10 +87,14 @@ C4Deployment
 6. Verificación desde el appliance:
    ```bash
    source .env   # trae FRIGATE_CAM1_IP y las credenciales, sin teclearlas
-   ffprobe -rtsp_transport tcp \n     "rtsp://$FRIGATE_RTSP_USER:$FRIGATE_RTSP_PASSWORD@$FRIGATE_CAM1_IP:554/stream1"
-   ffprobe -rtsp_transport tcp \n     "rtsp://$FRIGATE_RTSP_USER:$FRIGATE_RTSP_PASSWORD@$FRIGATE_CAM1_IP:554/stream2"
+   ffprobe -rtsp_transport tcp \
+     "rtsp://$FRIGATE_RTSP_USER:$FRIGATE_RTSP_PASSWORD@$FRIGATE_CAM1_IP:554/stream1"
+   ffprobe -rtsp_transport tcp \
+     "rtsp://$FRIGATE_RTSP_USER:$FRIGATE_RTSP_PASSWORD@$FRIGATE_CAM1_IP:554/stream2"
    ```
-   Debe reportar h264, 1920x1080 (stream1) y 640x360 (stream2).
+   Debe reportar h264, **2304x1296** (stream1) y 640x360 (stream2). El 1920x1080 que
+   suponia el diseno no es lo que dan estas C310: medido el 2026-09-09 sobre un
+   segmento ya grabado.
 
 ## Paso 2 — Instalar Docker Engine + Compose
 ```bash
@@ -171,6 +175,23 @@ docker compose logs -f frigate   # buscar la línea con la contraseña admin gen
 Primer login: `https://IP-LAN:8971` con el usuario `admin` y la contraseña impresa en el
 log (certificado autofirmado: aceptar). Cambiar la contraseña desde Settings → Users.
 
+> **Comprobar SAFE MODE antes de dar el arranque por bueno.** Si el config no valida,
+> Frigate **no se para**: arranca en modo seguro, graba, detecta y publica en MQTT con
+> aspecto de estar sano (`healthy` en `docker ps`), pero **desactiva el mantenimiento de
+> almacenamiento y la limpieza de grabaciones y eventos** — es decir, la retención de
+> ADR-0004, que es el control de T1, no se aplica y la media crece sin límite.
+>
+> ```bash
+> docker logs frigate 2>&1 | grep -iE "safe mode|Config Validation Errors" | head
+> ```
+> Cualquier salida aquí significa que la configuración **no** está en vigor. El log dice
+> línea y clave exactas; corregir y **volver a `docker compose up -d`**.
+>
+> Y el corolario que costó siete horas el 2026-09-09: **arreglar el fichero no basta**.
+> Frigate lee el config al arrancar, así que un contenedor levantado a las 05:29 con un
+> config corregido a las 05:34 sigue en modo seguro indefinidamente, con el fichero del
+> disco ya correcto y `docker ps` diciendo `healthy`. Editar y reiniciar son un solo paso.
+
 ## Paso 7 — Verificación funcional y de carga
 - UI: ambas cámaras con imagen en vivo; latencia observada ≤2 s.
 - Grabación: aparecen segmentos en `/srv/frigate/media/frigate/recordings/`.
@@ -185,13 +206,25 @@ log (certificado autofirmado: aceptar). Cambiar la contraseña desde Settings �
   Presupuesto: <50 % CPU sostenida. Si se excede: bajar `detect.fps` a 4, o limitar el
   contenedor (`cpuset: "0,1"`) — decisión HITL de Gate 1.
 - Audio (SR06 / FL §934.03): tomar un segmento recién grabado y comprobar que **no**
-  tiene pista de audio —
+  tiene pista de audio. **Dos trampas, las dos comprobadas el 2026-09-09**: `ffprobe` no
+  está en el `PATH` del contenedor, y la media del host cuelga de `/srv/frigate/media/`
+  (el `frigate/` interno lo pone el propio montaje). Con la ruta mal o el binario ausente,
+  el comando aborta, `grep -c` devuelve `0` y **el test pasa sin haber mirado nada**: por eso
+  aquí se comprueba primero que hay segmento.
   ```bash
-  ffprobe -v error -show_streams -select_streams a \n    "$(find /srv/frigate/media/frigate/recordings -name '*.mp4' | head -1)" | grep -c codec_type
+  FFPROBE=/usr/lib/ffmpeg/7.0/bin/ffprobe   # ojo: no está en el PATH
+  seg=$(docker exec frigate sh -c 'find /media/frigate/recordings -name "*.mp4" \
+        -newermt "-30 minutes" | head -1')
+  [ -n "$seg" ] || { echo "SIN SEGMENTOS RECIENTES: el test no prueba nada"; exit 1; }
+  docker exec frigate $FFPROBE -v error -show_streams -select_streams a "$seg" \
+    | grep -c codec_type
   ```
   Debe devolver `0`. (El default de Frigate es `preset-record-generic-audio-aac`; el
-  config del proyecto lo fuerza a `preset-record-generic`.)
-- Disco: `df -h /srv/frigate` y anotar crecimiento a las 24 h; alerta si >90 %.
+  config del proyecto lo fuerza a `preset-record-generic`.) Resultado del 2026-09-09:
+  `0` en ambas cámaras, esta vez de verdad.
+- Disco: `df -h /srv/frigate` y anotar crecimiento a las 24 h; alerta si >85 % (T1).
+  Medido el 2026-09-09 con las dos cámaras en continuo: **~14 GB/día**
+  (4,2 GB en 7 h 09 min), un tercio de lo que estimaba ADR-0004.
 - Logs: `docker inspect frigate --format '{{.HostConfig.LogConfig}}'` debe mostrar
   `max-size:10m` (T1: json-file sin rotación llena el disco del router).
 
@@ -226,8 +259,10 @@ cron en el appliance ejecuta `snapshot-db.sh` (usa `sqlite3 .backup`, valida con
 ```bash
 sudo useradd -r -m -s /bin/bash nvrbackup
 sudo install -d -m 700 -o nvrbackup -g nvrbackup /home/nvrbackup/.ssh
-# Pegar la clave publica del NAS restringida a rsync de solo lectura:
-#   command="rrsync -ro /srv/frigate",no-agent-forwarding,no-port-forwarding,\n#   no-pty,no-X11-forwarding ssh-ed25519 AAAA...
+# Pegar la clave publica del NAS restringida a rsync de solo lectura.
+# En authorized_keys va TODO EN UNA SOLA LINEA; aqui se parte solo para leerla:
+#   command="rrsync -ro /srv/frigate",no-agent-forwarding,no-port-forwarding,
+#   no-pty,no-X11-forwarding ssh-ed25519 AAAA...
 sudo -u nvrbackup nano /home/nvrbackup/.ssh/authorized_keys
 sudo chmod 600 /home/nvrbackup/.ssh/authorized_keys
 # Lectura de la media sin poder escribir ni borrar:
