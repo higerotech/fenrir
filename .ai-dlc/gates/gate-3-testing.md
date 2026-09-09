@@ -17,4 +17,4 @@
       disponibles, swap del NVR en 0, y el `tmpfs` se drena tras un export
 - [ ] **HITL**: Jeremi acepta el resultado de la medición de carga (entrada de ADR-0002)
 
-Al aprobar: cortar → `0.4.0`.
+Al aprobar: cortar el siguiente MINOR (previsto `0.5.0`).

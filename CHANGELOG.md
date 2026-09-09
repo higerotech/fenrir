@@ -5,9 +5,17 @@ Todos los cambios notables de este proyecto se documentan en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
 y este proyecto se adhiere a [Versionado Semántico](https://semver.org/lang/es/).
 
-Cada versión corresponde al cierre de un gate AI-DLC, según las reglas de `.ai-dlc/gates/`.
+El cierre de cada gate AI-DLC corta versión. **No es la única razón para cortar**: un cambio
+entre gates que añada requisitos o controles también corta su MINOR, como manda SemVer. Por
+eso los gates reservan *el siguiente* MINOR y no un número fijo — ver `.ai-dlc/gates/`.
 
 ## [Unreleased]
+
+## [0.3.0] - 2026-09-08
+
+**Documentación de las seis fases completa y presupuesto de recursos cerrado.** No cierra
+ningún gate: los Gates 2 a 5 siguen abiertos porque su evidencia exige el sistema desplegado.
+Lo que sí queda cerrado es el papel — y el presupuesto, que hasta ahora solo cubría CPU.
 
 ### Añadido
 
@@ -138,6 +146,7 @@ de abuso, threat assessment inicial y datos clasificados.
 - Audio deshabilitado por defecto: Florida §934.03 exige consentimiento de todas las partes.
 - Blink Mini fuera de alcance: protocolo cloud propietario, sin RTSP/ONVIF.
 
-[Unreleased]: https://github.com/higerotech/nvr-frigate/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/higerotech/nvr-frigate/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/higerotech/nvr-frigate/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/higerotech/nvr-frigate/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/higerotech/nvr-frigate/releases/tag/v0.1.0

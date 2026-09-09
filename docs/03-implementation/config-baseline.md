@@ -42,16 +42,17 @@ entran por el flujo del §9 del runbook y se anotan en el `CHANGELOG.md`.
 gitGraph
    commit id: "chore: license"
    commit id: "docs: gates 0-1 + deploy" tag: "v0.2.0"
+   commit id: "feat: presupuesto de memoria" tag: "v0.3.0"
    branch feature/gate-2-baseline
    commit id: "fix: config version 0.17-0"
    commit id: "sec: bind LAN + sin audio"
    checkout main
-   merge feature/gate-2-baseline tag: "v0.3.0"
+   merge feature/gate-2-baseline tag: "v0.4.0"
    branch feature/gate-3-verificacion
    commit id: "test: plan de aceptacion"
    commit id: "test: evidencias del despliegue"
    checkout main
-   merge feature/gate-3-verificacion tag: "v0.4.0"
+   merge feature/gate-3-verificacion tag: "v0.5.0"
    commit id: "deploy: runbook ejecutado" tag: "v1.0.0"
    branch feature/gate-5-observabilidad
    commit id: "ops: alertas Node-RED"
@@ -60,7 +61,8 @@ gitGraph
 ```
 
 Una rama por gate, vida corta, merge a `main` al aprobar el gate y tag SemVer que coincide
-con el corte del `CHANGELOG`. Cuando exista historial real, este grafo se **deriva**, no se
+con el corte del `CHANGELOG`. Los cambios entre gates que añadan requisitos o controles
+también cortan su MINOR: por eso `v0.3.0` no pertenece a ningún gate. Cuando exista historial real, este grafo se **deriva**, no se
 mantiene a mano:
 
 ```bash

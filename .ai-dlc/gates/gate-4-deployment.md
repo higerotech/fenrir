@@ -9,4 +9,5 @@
 - [ ] CI mínima (opcional, ADR-0002): acción que valide Mermaid y `docker compose config` en push
 - [ ] **HITL**: Jeremi confirma que el enrutamiento dual-WAN no se degradó tras 72 h
 
-Al aprobar: cortar → `1.0.0` (MVP en producción doméstica).
+Al aprobar: cortar → `1.0.0` (MVP en producción doméstica). Este sí es un número fijo: el
+1.0.0 marca el hito, no la secuencia.
