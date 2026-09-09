@@ -80,7 +80,7 @@ stateDiagram-v2
     [*] --> Grabando
     Grabando --> Continuo: cierre de segmento sin evento
     Grabando --> Evento: solapa una deteccion
-    Continuo --> Purgado: retencion 3 dias
+    Continuo --> Purgado: retencion 5 dias
     Evento --> Purgado: retencion 14 dias (alertas)
     Evento --> Exportado: Jeremi exporta clip
     Exportado --> [*]

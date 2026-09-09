@@ -15,6 +15,7 @@
       evento en `frigate/events` <3 s tras la detección
 - [ ] Memoria dentro de RNF03 (T-17/T-18): Frigate <80 % de su límite, host con ≥4 GB
       disponibles, swap del NVR en 0, y el `tmpfs` se drena tras un export
+- [ ] Respaldo al NAS verificado con restauración real (T-19) y aislamiento probado (T-20/S-10)
 - [ ] **HITL**: Jeremi acepta el resultado de la medición de carga (entrada de ADR-0002)
 
 Al aprobar: cortar el siguiente MINOR (previsto `0.5.0`).

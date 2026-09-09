@@ -95,7 +95,7 @@ journey
 | ID | Requisito |
 |---|---|
 | RF01 | Ingerir RTSP de las 2 C310 (stream1 grabación, stream2 detección) |
-| RF02 | Grabación continua con retención de 3 días y 14 días para alertas |
+| RF02 | Grabación continua con retención de 5 días y 14 días para alertas |
 | RF03 | Detectar persona y vehículo con CPU sobre el sub-stream a 5 fps |
 | RF04 | Vista en vivo ≤2 s vía go2rtc (WebRTC) |
 | RF05 | Publicar eventos en MQTT (`frigate/events`) consumibles por Node-RED |

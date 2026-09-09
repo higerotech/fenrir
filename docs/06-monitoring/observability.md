@@ -38,6 +38,7 @@ sola fuente sin instrumentación propia.
 | Disponibilidad por cámara | `frigate_camera_fps` > 0 y `frigate/available` | ≥99 % mensual | RF01 | **Provisional** |
 | Retraso detección → MQTT | Marca de tiempo del evento contra la recepción | <3 s | PRD, RF05 | Fijo |
 | Coste de inferencia | `frigate_detector_inference_speed_seconds` | Sin tendencia creciente | ADR-0001 (deuda del detector CPU) | Observar |
+| Frescura del respaldo | Marca de tiempo del último rsync completado en el NAS | <36 h | ADR-0006, T8 | Fijo |
 | Salud del enrutamiento | Latencia y pérdida de un ping a la WAN | Sin degradación contra el baseline pre-NVR | ADR-0002 | **Provisional** |
 
 **Error budget.** Con uso doméstico no hay contrato que respetar, así que el presupuesto se
@@ -113,6 +114,7 @@ porque ese puerto no tiene autenticación.
 | Memoria del host baja | `MemAvailable` <1,5 GB en 3 muestras | Alta | RNF03, T7 | Runbook I-6 |
 | Frigate cerca de su límite | `frigate_mem_usage_percent` >80 % en 3 muestras, o crecimiento monótono en 24 h | Media | RNF03, T7 | Runbook I-6 |
 | Contenedor reiniciando | Uptime se reinicia más de 3 veces en 1 h. **Con `mem_limit`, un reinicio repetido suele ser OOM del contenedor**: confirmar con `docker inspect frigate --format '{{.State.OOMKilled}}'` | Alta | A10, T7 | Runbook I-4 |
+| Respaldo obsoleto | Sin rsync completado en 36 h | Media | ADR-0006 | Runbook I-7 |
 | Enrutamiento degradado | Pérdida o latencia anómala hacia la WAN | **Crítica** | ADR-0002 | Runbook I-5 |
 
 Destino de las notificaciones: el que ya use el stack Node-RED existente. Una alerta que solo
@@ -176,6 +178,13 @@ servicio y anotar el episodio, porque sin historial de métricas (ADR-0005) una 
 solo se ve por acumulación de episodios. Si quien consume es el host y no el NVR, el NVR es
 la víctima y no la causa. Lo que **no** hay que hacer es subir el `mem_limit` para que deje
 de avisar: ese límite es lo que impide que el OOM killer se lleve a `dnsmasq` por delante.
+
+**I-7 · Respaldo obsoleto.** El respaldo lo inicia el NAS, así que el fallo casi siempre está
+allí: tarea desactivada, disco lleno o clave SSH caducada. Comprobar desde el NAS primero.
+Si el NAS está bien, verificar en el appliance que `nvrbackup` sigue existiendo y que la ACL
+de lectura no se perdió tras un cambio de permisos. **Esta alerta es de las que más importan
+aunque parezca menor**: un respaldo que dejó de correr en silencio es peor que no tenerlo,
+porque da una red de seguridad que no existe. No silenciarla sin arreglar la causa.
 
 **I-5 · Enrutamiento degradado (crítica).** El router manda sobre el NVR, siempre.
 `docker compose stop` para devolverle la máquina al enrutamiento, confirmar que se recupera,

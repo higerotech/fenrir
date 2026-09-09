@@ -85,6 +85,8 @@ mindmap
 
 ## Riesgos de alto nivel
 - Saturación de CPU en picos simultáneos (detección + cifrado WireGuard + NAT).
-- Fallo del HDD único → pérdida de grabaciones (sin RAID; asumido en MVP).
+- Fallo del HDD único → pérdida de grabaciones (sin RAID). **Mitigado parcialmente** desde
+  ADR-0006: el NAS respalda alertas, snapshots, exportados y `config/`. El metraje continuo
+  sigue sin réplica y se pierde: es una decisión, no un olvido.
 - Grabación de audio: Florida exige consentimiento de dos partes (§934.03) → audio
   deshabilitado por defecto en el MVP.

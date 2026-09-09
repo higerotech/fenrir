@@ -12,7 +12,8 @@
 
 | Dato | Clasificación | Regulación | Cifrado en reposo | Cifrado en tránsito | Retención |
 |---|---|---|---|---|---|
-| Video grabado (segmentos, clips) | Confidencial | Privacidad doméstica | No (HDD local, acceso físico controlado) | Parcial: RTSP en claro (LAN); WireGuard al acceder remoto | 3 días continuo / 14 días alertas |
+| Video grabado (segmentos, clips) | Confidencial | Privacidad doméstica | No (HDD local, acceso físico controlado) | Parcial: RTSP en claro (LAN); WireGuard al acceder remoto | 5 días continuo / 14 días alertas |
+| **Copia de respaldo en el NAS** (alertas, snapshots, exportados y `config/`) | Confidencial | — | No (depende del NAS) | SSH (el NAS tira; ver ADR-0006) | Igual o mayor que el origen: la define el NAS |
 | Snapshots de eventos | Confidencial | — | No | HTTPS-LAN / WireGuard | 14 días |
 | Audio | Restringido | FL §934.03 (dos partes) | — | — | **No se captura (deshabilitado)** |
 | Credenciales RTSP de cámaras | Restringido | — | En `.env` con permisos 600, fuera de git | Solo LAN | Hasta rotación |
@@ -26,3 +27,6 @@ Notas:
 - Las C310 no soportan RTSPS: el video en claro queda aceptado **solo** dentro del trust
   boundary LAN (ver threat model, amenaza T3).
 - Si en el futuro se habilita audio, colocar señalización visible y revisar §934.03.
+- El respaldo en el NAS crea una **segunda ubicación** de video Confidencial. El NAS hereda
+  la clasificación: su control de acceso y su cifrado en reposo pasan a ser parte de la
+  postura del NVR, no un asunto aparte (ver ADR-0006 y T8).

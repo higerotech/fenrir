@@ -7,7 +7,7 @@
 * **Versión:** 0.4.0
 * **Gate:** 3
 * **Alcance de prueba:** sistema desplegado en el appliance (no hay unidades que probar)
-* **Requisitos cubiertos:** RF01–RF05, RNF01–RNF03, SR01–SR06, abusos A1–A6
+* **Requisitos cubiertos:** RF01–RF05, RNF01–RNF03, SR01–SR06, abusos A1–A6, ADR-0006
 
 ## Estrategia
 
@@ -162,11 +162,13 @@ la última columna. Un caso sin evidencia **no cuenta como aprobado**.
 | T-11 | RNF01 | 15 min con detección activa: `docker stats` y `htop` | CPU sostenida del proyecto <50 % | |
 | T-12 | RNF01 | Métrica `frigate_skipped_fps` durante T-11 | **0**. Si es >0 el detector no da abasto: canario de T2 | |
 | T-13 | SR06 | `ffprobe -show_streams -select_streams a` sobre un segmento nuevo | Cero streams de audio | |
-| T-14 | RF02 | Al día 4: buscar el segmento continuo más antiguo | Nada anterior a 3 días, el disco no crece sin límite | |
+| T-14 | RF02 | Al día 6: buscar el segmento continuo más antiguo | Nada anterior a 5 días, el disco no crece sin límite | |
 | T-15 | RF02 | Al día 15: revisar alertas y snapshots antiguos | Nada anterior a 14 días | |
 | T-16 | — | Exportar un clip desde la UI | El archivo exportado existe y se reproduce | |
 | T-17 | RNF03 | Durante los 15 min de T-11: `docker stats --no-stream` y `free -h` | Frigate <80 % de sus 3 GB; `MemAvailable` del host ≥4 GB; swap del NVR en 0 | |
 | T-18 | RNF03 | Tras T-16 (exportar un clip largo): `docker exec frigate df -h /tmp/cache` | El `tmpfs` se drena tras el export y no queda ocupado | |
+| T-19 | ADR-0006 | Lanzar la tarea del NAS; luego **restaurar** un archivo cualquiera desde el NAS y reproducirlo | El respaldo completa, y el archivo restaurado se reproduce. Un respaldo nunca restaurado no es un respaldo | |
+| T-20 | ADR-0006 | Apagar el NAS y dejar el NVR 30 min | Grabación, vivo y eventos siguen sin inmutarse: el appliance no monta nada del NAS | |
 
 ## Pruebas de seguridad (equivalente DAST) — los abusos del PRD como casos
 
@@ -180,6 +182,7 @@ la última columna. Un caso sin evidencia **no cuenta como aprobado**.
 | S-06 | A4 / T1→T7 | Rellenar `/srv/frigate` hasta el 92 % con `fallocate` y esperar. Vigilar a la vez `docker exec frigate df -h /tmp/cache` y `free -h` | Salta la alerta de watermark; el router no se degrada; **y el `tmpfs` no arrastra la memoria del host**: si Frigate muere, lo hace por su `mem_limit` y no se lleva a `dnsmasq`. **Borrar el archivo al terminar** |
 | S-07 | A5 | `mosquitto_sub -t '#'` sin credenciales | Rechazado por `allow_anonymous false` |
 | S-08 | SR05 | `docker image inspect` del digest desplegado contra el registrado en la fase 03 | Coinciden |
+| S-10 | T8 | Desde la cuenta `nvrbackup` por SSH: intentar escribir, borrar o salir del árbol `/srv/frigate` | Todo rechazado: la clave está restringida por `command=` a rsync de solo lectura |
 | S-09 | A1 | Diez intentos de login fallidos seguidos | Quedan registrados y son revisables en el log (A09) |
 
 Cobertura OWASP: A01 (S-01, S-02), A02 (S-03, S-04, S-07), A03 (S-08), A07 (S-01, S-09).

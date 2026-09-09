@@ -26,7 +26,7 @@ es el insumo de este análisis — no se duplica (regla anti-ruido). Trust bound
 | UI Frigate (8971) | Fuerza bruta login → password fuerte, LAN-only | Config alterada → permisos 600 y git | Sin log centralizado (aceptado MVP) | Sesiones robadas en LAN → riesgo bajo, HTTPS interno | Flood LAN (bajo) | Puerto 5000 sin auth → **no publicado** |
 | Streams RTSP cámaras | Cámara falsa suplanta IP → reserva DHCP + credencial por cámara | Inyección de video (MITM LAN) → aceptado L1, LAN física controlada | — | **Video y credenciales en claro** → confinado a LAN, VLAN futura | Desconexión de cámara → watchdog `frigate/available` | Firmware cámara comprometido → egress deny, actualizaciones |
 | Mosquitto (1883) | Cliente anónimo → `allow_anonymous false` + passwd | Publicación de eventos falsos → credencial única por cliente | — | Metadatos de presencia en topics → auth obligatoria | Flood de publish → solo 2 clientes autorizados | — |
-| Media store (HDD) | — | Borrado/alteración local → acceso físico controlado | — | Robo del disco → sin cifrado, riesgo asumido y documentado | **Disco lleno** → retención + purga + alerta 90 % | — |
+| Media store (HDD) | — | Borrado/alteración local → acceso físico controlado | — | Robo del disco → sin cifrado, riesgo asumido. **El respaldo duplica la exposición al NAS (T8)** | **Disco lleno** → retención + purga + alerta 90 % | — |
 | Host compartido (router) | — | — | — | — | **Detector CPU compite con NAT/WireGuard** → límite fps, nice/cpuset opcional. **Memoria**: sin `mem_limit` el OOM killer elige víctima por heurística → límite por contenedor (T7) | Escape de contenedor → imagen oficial pineada, sin privileged |
 
 ## Amenazas priorizadas (DREAD)
@@ -47,6 +47,7 @@ quadrantChart
     T5 Exposicion WAN: [0.25, 0.9]
     T6 Puerto 5000 sin auth: [0.3, 0.8]
     T7 Agotamiento de memoria: [0.35, 0.8]
+    T8 Copia en el NAS: [0.3, 0.6]
 ```
 
 | ID | Amenaza | D | R | E | A | D | Score | Control / ADR |
@@ -57,6 +58,7 @@ quadrantChart
 | T6 | API 5000 sin auth alcanzable en LAN | 8 | 4 | 6 | 6 | 6 | 6.0 | Puerto no mapeado en compose; solo 8971 autenticado |
 | T7 | Agotamiento de memoria del host: el OOM killer del kernel elige víctima por heurística y puede matar `dnsmasq` (DNS/DHCP de la casa) en vez de Frigate | 8 | 3 | 3 | 8 | 5 | 5.4 | `mem_limit` acota el contenedor: mata Docker a Frigate, no el kernel al router (RNF03); alerta de `MemAvailable` |
 | T4 | C310 comprometida pivotea o exfiltra | 7 | 4 | 5 | 6 | 5 | 5.4 | Egress deny cámaras (nftables, pendiente MACs); credencial por cámara |
+| T8 | El respaldo crea una segunda ubicación de video Confidencial: comprometer o robar el NAS expone el mismo material que proteger el appliance | 6 | 4 | 4 | 5 | 5 | 4.8 | Solo alertas, snapshots y `config/` (no el continuo); cuenta SSH dedicada de solo lectura restringida por `command=`; el NAS hereda la clasificación de datos (ADR-0006) |
 | T3 | Sniffing RTSP/credenciales en LAN | 5 | 3 | 4 | 5 | 4 | 4.2 | Aceptado L1 (LAN física propia); mitigación futura: VLAN cámaras |
 
 ## Controles y trazabilidad
@@ -64,6 +66,8 @@ quadrantChart
 - T4, T5 → reglas nftables del proyecto router (pendientes de MACs/IPs definitivas de las
   cámaras — **entrada para el ciclo de configuración de red ya en curso**).
 - T5, T6 → `deploy/docker-compose.yml` (mapeo mínimo + bind a la IP LAN; 5000 sin publicar).
+- T8 → ADR-0006: el NAS tira por SSH y el appliance no monta nada, así que el respaldo no
+  añade dependencias ni puntos de bloqueo al host que enruta. Verificación en T-19.
 - T7 → `mem_limit` en ambos servicios (RNF03) + SLI `frigate_mem_usage_percent` y alerta de
   `MemAvailable` del host; verificación en T-17. El acoplamiento T1→T7 es el hallazgo que
   motivó el requisito: el disco lleno no es solo un problema de disco.
