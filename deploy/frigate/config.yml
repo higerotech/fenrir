@@ -5,9 +5,9 @@ version: 0.17-0
 
 mqtt:
   enabled: true
-  host: mosquitto
+  host: "{FRIGATE_MQTT_HOST}"    # broker existente del host, por nombre en la red `iot`
   port: 1883
-  user: frigate
+  user: "{FRIGATE_MQTT_USER}"
   password: "{FRIGATE_MQTT_PASSWORD}"
   topic_prefix: frigate
 

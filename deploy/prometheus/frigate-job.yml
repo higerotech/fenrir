@@ -1,0 +1,16 @@
+# Job de scrape del NVR — ADR-0008.
+#
+# Este fichero es la ESPECIFICACIÓN; se instala en el proyecto que gobierna Prometheus
+# (su `prometheus.yml`), no en este repositorio. Vive aquí para que la observabilidad del
+# NVR esté versionada junto al NVR aunque se ejecute en otro sitio.
+#
+# El objetivo es el puerto 5000, que no está publicado: Prometheus lo alcanza por la red
+# Docker compartida. Ese es justamente el motivo por el que T6 sigue intacto.
+#
+# Nota de convención: el resto de jobs del host usan nomenclatura nórdica. Si se quiere
+# mantener, renombrar `frigate` por lo que corresponda y ajustar las reglas en consecuencia.
+- job_name: frigate
+  scrape_interval: 30s
+  metrics_path: /api/metrics
+  static_configs:
+    - targets: ["frigate:5000"]

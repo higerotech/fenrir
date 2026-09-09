@@ -1,0 +1,86 @@
+# Reglas de alerta del NVR — ADR-0008, trazadas a los SLIs de docs/06-monitoring.
+#
+# Cada alerta lleva `for:` deliberadamente: confirmar antes de avisar es lo que impide que
+# un pico durante un `apt upgrade` enseñe a ignorar las alertas.
+groups:
+  - name: frigate
+    rules:
+
+      # --- Disponibilidad -------------------------------------------------------------
+      - alert: FrigateCaido
+        expr: up{job="frigate"} == 0
+        for: 2m
+        labels: { severity: critical, servicio: nvr }
+        annotations:
+          summary: "El NVR no responde al scrape"
+          runbook: "docs/06-monitoring/observability.md — I-4"
+
+      - alert: CamaraCaida
+        expr: frigate_camera_fps == 0
+        for: 5m
+        labels: { severity: critical, servicio: nvr }
+        annotations:
+          summary: "Cámara {{ $labels.camera_name }} sin frames desde hace 5 min"
+          descripcion: >-
+            Mientras las cámaras estén en el Wi-Fi del lado WAN (ADR-0007) esto será más
+            frecuente que en la LAN cableada del diseño. Si el ruido molesta, subir el `for`
+            antes que silenciar la alerta.
+          runbook: "docs/06-monitoring/observability.md — I-1"
+
+      # --- T1: disco. El media store comparte volumen con la raíz del host, así que esta
+      # alerta protege al sistema entero, no solo a las grabaciones. -------------------
+      - alert: DiscoNvrAlto
+        expr: frigate_storage_used_bytes / frigate_storage_total_bytes > 0.85
+        for: 15m
+        labels: { severity: warning, servicio: nvr }
+        annotations:
+          summary: "Almacenamiento del NVR al {{ $value | humanizePercentage }}"
+          descripcion: >-
+            Umbral al 85 % y no al 90 % porque no hay volumen dedicado: /srv comparte LV con
+            la raíz, que sirve al resto de contenedores del host. Llenarlo no degrada solo
+            al NVR.
+          runbook: "docs/06-monitoring/observability.md — I-2"
+
+      - alert: DiscoNvrCritico
+        expr: frigate_storage_used_bytes / frigate_storage_total_bytes > 0.92
+        for: 5m
+        labels: { severity: critical, servicio: nvr }
+        annotations:
+          summary: "Almacenamiento del NVR al {{ $value | humanizePercentage }} — riesgo para el host"
+          runbook: "docs/06-monitoring/observability.md — I-2"
+
+      # --- T2: el detector no da abasto ------------------------------------------------
+      - alert: DetectorSaturado
+        expr: frigate_skipped_fps > 0
+        for: 3m
+        labels: { severity: warning, servicio: nvr }
+        annotations:
+          summary: "El detector descarta frames en {{ $labels.camera_name }}"
+          descripcion: >-
+            Canario de T2: el detector CPU no da abasto. Es la señal temprana de la condición
+            de revocación de ADR-0002, antes de que la CPU sostenida lo delate.
+          runbook: "docs/06-monitoring/observability.md — I-3"
+
+      # --- RNF03: memoria del propio Frigate -------------------------------------------
+      - alert: FrigateMemoriaAlta
+        expr: frigate_mem_usage_percent > 80
+        for: 15m
+        labels: { severity: warning, servicio: nvr }
+        annotations:
+          summary: "Frigate al {{ $value }} % de memoria"
+          descripcion: >-
+            Si el tmpfs está lleno el problema real es el disco, no la memoria: la caché no
+            drena al HDD y crece (acoplamiento T1→T7). Comprobarlo antes de tocar mem_limit.
+          runbook: "docs/06-monitoring/observability.md — I-6"
+
+# ---------------------------------------------------------------------------------------
+# SIN FUENTE DE MÉTRICA TODAVÍA — no se escriben alertas que no puedan dispararse:
+#
+#   * `MemAvailable` del host y CPU sostenida del host (RNF03 y RNF01/ADR-0002).
+#     Frigate solo expone su propio proceso. Medir si el NVR degrada al router exige
+#     métricas de host, y no hay node_exporter desplegado. Es la pieza que falta.
+#
+#   * Frescura del respaldo al NAS (ADR-0006). El `.last-success` vive en el NAS. Se puede
+#     resolver con el mismo patrón de textfile servido por HTTP que ya usa el job de
+#     throughput del host.
+# ---------------------------------------------------------------------------------------

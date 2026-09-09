@@ -11,7 +11,8 @@
   - [ ] `config.yml` parsea y Frigate arranca sin `config validation error` en el log
   - [ ] `version:` del config coincide con `CURRENT_CONFIG_VERSION` del tag desplegado
 - [ ] Cadena de suministro (A03, equivale a deps verificadas):
-  - [ ] Digest SHA256 de `frigate:0.17.2` y `eclipse-mosquitto:2` anotado en el repo
+  - [ ] Digest SHA256 de `frigate:0.17.2` anotado en el repo (el broker ya no es nuestro:
+        lo gobierna el proyecto de la plataforma, ADR-0008)
   - [ ] Escaneo de imagen (`trivy image` o `docker scout cves`) revisado; CVEs críticos triados
   - [ ] Release notes de 0.17.2 leídas (cambios de schema respecto al config)
 - [ ] Secretos (A02): escaneo del repo (`gitleaks detect`) limpio; `.env` y `passwd` ignorados

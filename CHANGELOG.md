@@ -23,6 +23,50 @@ eso los gates reservan *el siguiente* MINOR y no un número fijo — ver `.ai-dl
 
 ### Añadido
 
+- **ADR-0008 — el NVR se integra en la plataforma del host en vez de traer sus propias
+  piezas. Supersede a ADR-0005.** La inspección del host (2026-09-09) desmintió las dos
+  premisas del diseño: ya corren un broker MQTT con `password_file` y `acl_file`, Node-RED,
+  Prometheus, Grafana, Alertmanager y un blackbox exporter que vigila ambas WAN.
+  - **Bug evitado**: el compose publicaba su propio Mosquitto en la misma IP y puerto que el
+    broker existente. `docker compose up -d` habría fallado con *address already in use* —
+    y el escenario peor era que no fallara y quedaran dos brokers.
+  - Se elimina el servicio Mosquitto del compose. Frigate usa el broker existente, con
+    usuario y ACL propios para `frigate/#`.
+  - Frigate se une a la red Docker de esa plataforma. **Ni el 1883 ni el 5000 se publican en
+    ninguna interfaz**: Prometheus raspa `frigate:5000` por la red interna, así que T6 pasa
+    de "mitigado no publicando el puerto" a "no hay superficie que mitigar".
+  - `deploy/prometheus/`: job de scrape y seis reglas de alerta. Es la especificación; se
+    instala en el proyecto que gobierna Prometheus, pero se versiona junto al NVR.
+- **`group_add` para VAAPI.** `/dev/dri/renderD128` es `root:render` y mapear el dispositivo
+  no da pertenencia al grupo dentro del contenedor: sin esto ffmpeg falla con *permission
+  denied* y Frigate decodifica por CPU sin decirlo claramente. Verificado en T-24.
+- Casos T-23 (los clientes MQTT existentes no pierden acceso), T-24 (VAAPI de verdad),
+  T-25 (Prometheus raspa sin puerto publicado) y S-12 (el usuario del NVR no ve el resto del
+  tráfico MQTT del hogar).
+
+### Cambiado (por la inspección del host)
+
+- **ADR-0005 pasa a `superseded`.** Su argumento era que Prometheus y Grafana costarían
+  "~300–500 MB de RAM y CPU constante"; ya estaban desplegados. La premisa era falsa. Y la
+  deuda que aceptaba —no tener historial— resultó ser justo lo que hace falta para ver la
+  deriva del coste de inferencia (T2) y una fuga de memoria (T7).
+- **T1 sube de impacto: no hay volumen dedicado y no se puede tallar uno** (el grupo de
+  volúmenes no tiene espacio sin asignar). `/srv` comparte LV con la raíz del host, así que
+  llenarlo afecta a todo lo que corre en la máquina. El control *"media en ruta dedicada"*
+  del diseño no está disponible; la alerta de disco baja al **85 %** y pasa de segunda
+  barrera a primera.
+- Runbook: Paso 5 deja de crear un broker y da de alta un usuario en el existente, con un
+  aviso destacado de que `mosquitto_passwd -c` **borra el fichero entero** y dejaría sin
+  acceso a los clientes que ya había.
+
+### Hueco conocido, sin cerrar
+
+- **No hay `node_exporter` ni `cadvisor` en el host, así que no hay métricas de host.**
+  Frigate solo expone su propio proceso. Las dos preguntas que de verdad importan —¿la CPU
+  sostenida degrada el enrutamiento (RNF01, ADR-0002)? ¿queda `MemAvailable` por encima de
+  4 GB (RNF03)?— son de host, y siguen siendo comprobaciones manuales. No se escriben
+  alertas que no puedan dispararse.
+
 - **ADR-0007 — cámaras temporalmente fuera del trust boundary LAN.** Ambas C310 están en el
   Wi-Fi del lado WAN mientras se adquiere el equipamiento Wi-Fi definitivo. Se documenta como
   **desviación temporal con condición de salida**, no reescribiendo el diseño objetivo: el

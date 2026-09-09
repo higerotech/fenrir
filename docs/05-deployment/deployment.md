@@ -110,10 +110,16 @@ antes de continuar. Los puertos publicados por Docker se controlan además desde
 `DOCKER-USER` — la regla de cierre WAN va en el Paso 8.
 
 ## Paso 3 — Preparar almacenamiento y verificación VAAPI
+
+> **No hay volumen dedicado y no se puede tallar uno** (verificado 2026-09-09: el grupo de
+> volúmenes no tiene espacio sin asignar). `/srv/frigate` vive en la raíz, compartida con el
+> resto de servicios del host. Consecuencia práctica: la alerta de disco baja al 85 % y pasa
+> a ser el control principal de T1, no el secundario.
 ```bash
 sudo mkdir -p /srv/frigate/{config,media}
 sudo apt-get install -y vainfo intel-gpu-tools
 LIBVA_DRIVER_NAME=i965 vainfo   # debe listar perfiles H264 (VAEntrypointVLD)
+getent group render | cut -d: -f3   # -> este GID va a RENDER_GID en el .env
 ```
 Si `vainfo` no lista H264, instalar `i965-va-driver` en el host es irrelevante para el
 contenedor (Frigate trae sus drivers), pero confirma que `/dev/dri/renderD128` existe.
@@ -135,13 +141,27 @@ compose (T5) y `go2rtc.webrtc.candidates` en el config (RF04). Validar antes de 
 docker compose config >/dev/null && echo compose-ok
 ```
 
-## Paso 5 — Credenciales de Mosquitto
+## Paso 5 — Usuario en el broker existente (ADR-0008)
+
+El NVR **no despliega broker propio**: usa el que ya corre en el host, que tiene
+`allow_anonymous false`, `password_file` y `acl_file`. Hay que darle de alta un usuario y
+sus ACLs, sin tocar los que ya existen.
+
 ```bash
-docker run --rm -v /opt/nvr/mosquitto:/mosquitto/config eclipse-mosquitto:2 \
-  mosquitto_passwd -c -b /mosquitto/config/passwd frigate 'CLAVE_FRIGATE'
-docker run --rm -v /opt/nvr/mosquitto:/mosquitto/config eclipse-mosquitto:2 \
-  mosquitto_passwd -b /mosquitto/config/passwd nodered 'CLAVE_NODERED'
+# Crear el usuario. OJO: -c BORRA el fichero y con el todos los usuarios actuales.
+docker exec -it <contenedor-mosquitto>   mosquitto_passwd -b /mosquitto/data/passwd frigate 'CLAVE_FRIGATE'
+
+# ACL: anadir al final del acl_file, sin borrar lo anterior
+#   user frigate
+#   topic write frigate/#
+#   topic read  frigate/#
+docker exec -it <contenedor-mosquitto> sh -c 'cat >> /mosquitto/data/acl'
+
+docker restart <contenedor-mosquitto>   # recarga passwd y acl
 ```
+
+> **`mosquitto_passwd -c` borra el fichero entero.** En un broker compartido con otros
+> clientes ya dados de alta, usarlo por inercia deja sin acceso a todo lo demas.
 
 ## Paso 6 — Arranque
 ```bash

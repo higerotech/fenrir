@@ -8,7 +8,8 @@
 * **Gate:** 5
 * **SLOs (ref):** métricas de éxito del charter y del PRD
 * **On-call:** Jeremi (único operador; sin rotación)
-* **ADRs relacionadas:** ADR-0002 (condición de reapertura), ADR-0005 (stack de observabilidad)
+* **ADRs relacionadas:** ADR-0002 (condición de reapertura), ADR-0008 (stack de observabilidad;
+  supersede a ADR-0005)
 
 ## Principio: monitorizar lo que ya decidimos que importa
 
@@ -16,8 +17,17 @@ No se inventan métricas nuevas. Cada SLI de esta fase existe porque ya había u
 comprometido en el charter o una amenaza priorizada en el threat model. Si una métrica no
 traza a ninguna de las dos cosas, no se recolecta.
 
-Frigate 0.17 expone Prometheus en `/api/metrics`, así que casi todos los SLIs salen de una
-sola fuente sin instrumentación propia.
+Frigate 0.17 expone Prometheus en `/api/metrics`, y el host **ya ejecuta Prometheus, Grafana
+y Alertmanager** (ADR-0008). Así que casi todos los SLIs salen de una sola fuente sin
+instrumentación propia y sin desplegar nada nuevo: la especificación del job y de las reglas
+está en `deploy/prometheus/`, y se instala en el proyecto que gobierna Prometheus.
+
+> **Lo que falta, y conviene no disimularlo.** No hay `node_exporter` ni `cadvisor` en el
+> host, así que **no hay métricas de host**. Frigate solo expone su propio proceso. Las dos
+> preguntas que de verdad importan —¿la CPU sostenida degrada el enrutamiento (RNF01,
+> ADR-0002)? ¿queda `MemAvailable` por encima de 4 GB (RNF03)?— son de host, y hasta que se
+> despliegue un exportador siguen siendo comprobaciones manuales con `htop` y `free`. No se
+> escriben alertas que no puedan dispararse.
 
 > **Advertencia de honestidad.** Los umbrales de abajo son los del charter, decididos antes
 > de tener datos. Están marcados como *provisionales* hasta el baseline de 72 h del Gate 4;
@@ -90,24 +100,25 @@ solo se anota **dónde se engancha la telemetría** (regla anti-ruido: un objeto
 
 | Nodo del despliegue | Qué se recolecta | Cómo | Retención de la señal |
 |---|---|---|---|
-| Contenedor `frigate` | Métricas Prometheus | `GET :5000/api/metrics` | En memoria de Node-RED, ventana de 24 h |
-| Contenedor `frigate` | Eventos y disponibilidad | MQTT `frigate/#` | Igual que los eventos |
+| Contenedor `frigate` | Métricas Prometheus | Scrape de Prometheus a `frigate:5000` por la red Docker compartida | La del TSDB de Prometheus |
+| Contenedor `frigate` | Eventos y disponibilidad | MQTT `frigate/#` en el broker existente | Igual que los eventos |
 | Contenedor `frigate` | Logins fallidos de la UI (A09) | `docker logs frigate` | 30 MB por rotación (3×10 MB) |
-| Host / appliance | CPU, carga, salud del enrutamiento | `htop`, ping a la WAN | Manual |
-| Host / appliance | Memoria disponible y swap | `/proc/meminfo`, `docker stats` | Ventana de 24 h en Node-RED |
+| Host / appliance | Salud del enrutamiento | **Ya cubierto**: los jobs de blackbox ICMP contra ambas WAN existían antes que este proyecto | La del TSDB |
+| Host / appliance | CPU y carga del host | `htop` — **manual hasta que haya `node_exporter`** | — |
+| Host / appliance | Memoria disponible y swap | `/proc/meminfo`, `docker stats` — **manual hasta que haya `node_exporter`** | — |
 | `/srv/frigate` | Ocupación | Métrica de storage; `df -h` como respaldo | Manual |
 
-**Detalle de despliegue que hay que resolver, no descubrir.** `/api/metrics` está en el
-puerto **5000**, que deliberadamente no se publica (T6). Node-RED solo puede leerlo si se
-conecta a la red interna de Docker (`docker network connect nvr_default node-red`, o mover
-Node-RED al mismo proyecto compose). **No** se resuelve publicando el 5000: eso reabriría T6,
-porque ese puerto no tiene autenticación.
+**Cómo se alcanza el 5000 sin publicarlo.** Frigate se une a la red Docker de la plataforma
+(ADR-0008), donde ya viven el broker, Node-RED, Prometheus y Alertmanager. Prometheus raspa
+`frigate:5000` por esa red. Así **ni el 5000 ni el 1883 se publican en ninguna interfaz**:
+T6 pasa de "mitigado no publicando el puerto" a "no hay superficie que mitigar".
 
 ## Alertas
 
 | Alerta | Condición | Severidad | Traza | Acción inmediata |
 |---|---|---|---|---|
-| Disco casi lleno | Ocupación >90 % en 3 muestras | Alta | T1 | Runbook I-2 |
+| Disco al 85 % | `frigate_storage_used_bytes / total > 0.85` durante 15 min | Media | T1 | Runbook I-2 |
+| Disco al 92 % | Ídem >0.92 durante 5 min | **Crítica** | T1 | Runbook I-2 |
 | Cámara caída | `camera_fps` = 0 durante 5 min, o `frigate/available` = offline | Alta | RF01 | Runbook I-1 |
 | Detector saturado | `skipped_fps` > 0 en 3 muestras | Media | T2 | Runbook I-3 |
 | CPU sostenida | >50 % durante 15 min | Media | RNF01, ADR-0002 | Runbook I-3 |
@@ -117,8 +128,16 @@ porque ese puerto no tiene autenticación.
 | Respaldo obsoleto | Sin rsync completado en 36 h | Media | ADR-0006 | Runbook I-7 |
 | Enrutamiento degradado | Pérdida o latencia anómala hacia la WAN | **Crítica** | ADR-0002 | Runbook I-5 |
 
-Destino de las notificaciones: el que ya use el stack Node-RED existente. Una alerta que solo
-escribe en un log **no cumple el Gate 5**: si nadie la ve, no es una alerta.
+Las reglas viven en `deploy/prometheus/frigate-rules.yml` y se enrutan por el Alertmanager
+que ya existe, que ya sabe entregar a una persona. El Gate 5 deja de depender de construir
+un notificador. Sigue en pie el criterio: una alerta que solo escribe en un log **no cumple
+el Gate 5** — si nadie la ve, no es una alerta.
+
+**Por qué el disco avisa al 85 % y no al 90 % del charter.** No hay volumen dedicado: `/srv`
+comparte LV con la raíz del host, y el grupo de volúmenes no tiene espacio sin asignar para
+tallar uno. Llenar el media store no degrada solo al NVR, sino a todo lo que corre en la
+máquina. El control de T1 *"media en ruta dedicada"* no está disponible, así que el
+watermark deja de ser una segunda barrera y pasa a ser la primera.
 
 ## Ciclo de vida de un incidente
 
