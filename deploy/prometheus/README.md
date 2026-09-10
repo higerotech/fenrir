@@ -15,6 +15,20 @@ trazados a los requisitos que los justifican.
 | `node-exporter-job.yml` | Scrape de `host.docker.internal:9100` | Bloque `scrape_configs` |
 | `host-rules.yml` | 7 alertas de host | Directorio de reglas |
 
+## El dashboard vive en la plataforma, no aqui
+
+Los paneles de Fenrir estan en `higerotech/yggdrasil` :: `deploy/grafana/dashboards/fenrir/fenrir-nvr.json` (uid `fenrir-nvr`, carpeta `Fenrir` en
+Odin). Al contrario que las reglas, el dashboard **no** se duplica aqui: Grafana lo
+gobierna la plataforma y un JSON de 14 paneles mantenido en dos sitios se desincroniza
+el primer dia.
+
+Lo que si sigue viviendo aqui es **el umbral y su porque**. Los paneles dibujan los
+mismos numeros que las alertas de este directorio, para que panel y alerta no puedan
+contradecirse: 50 % de CPU (presupuesto RNF01) y 70 % (CpuNvrAlta), 47 % de memoria
+(donde el appliance baja de los 4 GB de RNF03), 80 % por proceso (FenrirMemoriaAlta) y
+0,5 fps de media en 10 min (DetectorSaturado). Si cambia un umbral aqui, hay que
+cambiarlo alli.
+
 ## Las anotaciones van en castellano por una razon
 
 `resumen` y `descripcion`, no `summary`. Las alertas llegan a Alertmanager y de ahi al flujo
