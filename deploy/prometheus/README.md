@@ -10,10 +10,24 @@ trazados a los requisitos que los justifican.
 | Fichero | Qué es | Dónde se instala |
 |---|---|---|
 | `fenrir-job.yml` | Scrape de `fenrir:5000` por la red Docker compartida | Bloque `scrape_configs` del `prometheus.yml` |
-| `fenrir-rules.yml` | 6 alertas del NVR | Directorio de reglas, como `rules/fenrir-alertas.yml` |
+| `fenrir-rules.yml` | 7 alertas del NVR | Directorio de reglas, como `rules/fenrir-alertas.yml` |
 | `node-exporter.compose.yml` | Servicio `node_exporter` | Compose de la plataforma |
 | `node-exporter-job.yml` | Scrape de `host.docker.internal:9100` | Bloque `scrape_configs` |
 | `host-rules.yml` | 7 alertas de host | Directorio de reglas |
+
+## El dashboard vive en la plataforma, no aqui
+
+Los paneles de Fenrir estan en `higerotech/yggdrasil` :: `deploy/grafana/dashboards/fenrir/fenrir-nvr.json` (uid `fenrir-nvr`, carpeta `Fenrir` en
+Odin). Al contrario que las reglas, el dashboard **no** se duplica aqui: Grafana lo
+gobierna la plataforma y un JSON de 14 paneles mantenido en dos sitios se desincroniza
+el primer dia.
+
+Lo que si sigue viviendo aqui es **el umbral y su porque**. Los paneles dibujan los
+mismos numeros que las alertas de este directorio, para que panel y alerta no puedan
+contradecirse: 50 % de CPU (presupuesto RNF01) y 70 % (CpuNvrAlta), 47 % de memoria
+(donde el appliance baja de los 4 GB de RNF03), 80 % por proceso (FenrirMemoriaAlta) y
+0,5 fps de media en 10 min (DetectorSaturado). Si cambia un umbral aqui, hay que
+cambiarlo alli.
 
 ## Las anotaciones van en castellano por una razon
 
